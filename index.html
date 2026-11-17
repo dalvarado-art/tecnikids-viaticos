@@ -9,13 +9,14 @@
   <meta name="apple-mobile-web-app-title" content="TK Viáticos" />
   <title>Asistente de Giras y Viáticos — Tecnikids SRL</title>
 
-  <!-- Librerías externas (ExcelJS, JSZip, PDF.js, Tesseract OCR, Firebase Compat) -->
+  <!-- Librerías externas -->
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
   <style>
     :root {
@@ -129,7 +130,6 @@
     .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
     .badge-blue { background: #dbeafe; color: #1e40af; }
     .badge-green { background: #dcfce7; color: #166534; }
-    .badge-amber { background: #fef3c7; color: #92400e; }
     .toast {
       position: fixed; bottom: 18px; right: 18px; background: #0f172a; color: #fff;
       padding: 11px 16px; border-radius: 10px; font-size: 13px; z-index: 9998; box-shadow: 0 8px 20px rgba(0,0,0,.25);
@@ -168,13 +168,13 @@
     <span class="brand-badge">TK</span>
     <div>
       <div style="font-weight:700; font-size:15px;">Tecnikids SRL — Giras y Viáticos</div>
-      <div id="save-status" style="font-size:11px; color:#94a3b8;">Autoguardado activo</div>
+      <div id="save-status" style="font-size:11px; color:#94a3b8;">Conectando nube...</div>
     </div>
   </div>
   <div class="header-actions">
     <button id="btn-install-pwa" class="btn-sm btn-warning hidden" onclick="instalarPWA()">📲 Instalar App</button>
     <button class="btn-sm btn-ghost" onclick="volverInicio()">🏠 Inicio</button>
-    <button class="btn-sm btn-ghost" onclick="guardarBorradorManual()">💾 Guardar</button>
+    <button class="btn-sm btn-ghost" onclick="guardarBorradorManual()">☁️ Sincronizar</button>
     <span id="user-badge" style="font-size:12px; color:#cbd5e1; padding:0 6px;"></span>
     <button class="btn-sm btn-danger" onclick="cerrarSesion()">Salir</button>
   </div>
@@ -187,12 +187,12 @@
       <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;">
         <div>
           <h2 style="margin:0 0 4px;">Seleccione el tipo de gestión</h2>
-          <p style="margin:0; color:var(--muted); font-size:14px;">Cédula Jurídica: 3-102-776732 • Todos los datos se respaldan localmente en tu dispositivo.</p>
+          <p style="margin:0; color:var(--muted); font-size:14px;">Cédula Jurídica: 3-102-776732 • Sincronizado en tiempo real en todos tus dispositivos.</p>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn-sm btn-outline" onclick="exportarRespaldoGlobal()">🛡️ Respaldo Completo (.json)</button>
+          <button class="btn-sm btn-outline" onclick="exportarRespaldoGlobal()">🛡️ Respaldo (.json)</button>
           <label class="btn-sm btn-outline" style="cursor:pointer; display:inline-flex; align-items:center;">
-            ♻️ Restaurar Respaldo
+            ♻️ Importar .json a la nube
             <input type="file" accept=".json" class="hidden" onchange="importarRespaldoGlobal(event)" />
           </label>
         </div>
@@ -214,7 +214,7 @@
 
     <div class="card">
       <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px;">
-        <h3 style="margin:0;">📂 Borradores Guardados y Plantillas</h3>
+        <h3 style="margin:0;">☁️ Borradores Guardados en la Nube y Plantillas</h3>
         <div style="display:flex; gap:8px; align-items:center;">
           <select id="select-plantilla-inicio" style="width:auto; min-width:210px;" onchange="crearDesdePlantilla(this.value)">
             <option value="">⭐ Crear gira desde plantilla...</option>
@@ -420,7 +420,7 @@
 
 <script>
 // ============================================================================
-// 1. CONFIGURACIÓN DE FIREBASE AUTH (CON TUS CREDENCIALES)
+// 1. CONFIGURACIÓN DE FIREBASE AUTH + CLOUD FIRESTORE (OFFLINE PERSISTENCE)
 // ============================================================================
 const firebaseConfig = {
   apiKey: "AIzaSyDxFiDEsFFcbEc6B0IG05Aby1E1I1eqz48",
@@ -434,15 +434,31 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+const db = firebase.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
-auth.onAuthStateChanged((user) => {
+// Habilitar caché offline nativa de Firestore
+db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+
+let currentUser = null;
+let unsubDocs = null;
+let unsubPlantillas = null;
+
+auth.onAuthStateChanged(async (user) => {
   const overlay = document.getElementById('auth-overlay');
   const badge = document.getElementById('user-badge');
   if (user) {
+    currentUser = user;
     overlay.classList.add('hidden');
     badge.textContent = user.displayName || user.email;
+    await migrarLocalStorageSiExiste(user.uid);
+    iniciarListenersNube(user.uid);
   } else {
+    currentUser = null;
+    if (unsubDocs) { unsubDocs(); unsubDocs = null; }
+    if (unsubPlantillas) { unsubPlantillas(); unsubPlantillas = null; }
+    state.docs = [];
+    state.plantillas = [];
     overlay.classList.remove('hidden');
     badge.textContent = '';
   }
@@ -476,7 +492,7 @@ function cerrarSesion() {
 }
 
 // ============================================================================
-// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v2)
+// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v3)
 // ============================================================================
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -523,7 +539,7 @@ async function instalarPWA() {
 
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       const swCode = `
-        const CACHE = 'tecnikids-viaticos-v2';
+        const CACHE = 'tecnikids-viaticos-v3';
         self.addEventListener('install', e => {
           self.skipWaiting();
           e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./']).catch(()=>{})));
@@ -547,7 +563,7 @@ async function instalarPWA() {
 })();
 
 // ============================================================================
-// 3. ESTADO GLOBAL Y PERSISTENCIA DOBLE (IndexedDB + localStorage)
+// 3. ESTADO GLOBAL Y SINCRONIZACIÓN EN TIEMPO REAL CON FIRESTORE
 // ============================================================================
 const CATEGORIAS = ['Alimentación', 'Hospedaje', 'Combustible', 'Peajes / Parqueo', 'Transporte / Uber', 'Materiales / Imprevistos', 'Otros'];
 let state = {
@@ -565,33 +581,127 @@ function toast(msg) {
   el._t = setTimeout(() => el.classList.add('hidden'), 3000);
 }
 
-function cargarEstadoLocal() {
+function userRef(uid) {
+  return db.collection('users').doc(uid);
+}
+
+function iniciarListenersNube(uid) {
+  document.getElementById('save-status').textContent = 'Sincronizando nube...';
+
+  // Escuchar lista de borradores
+  unsubDocs = userRef(uid).collection('borradores')
+    .orderBy('updatedAt', 'desc')
+    .onSnapshot((snap) => {
+      const nuevos = [];
+      snap.forEach(docSnap => {
+        const data = docSnap.data();
+        const existente = state.docs.find(d => d.id === docSnap.id);
+        // Preservar facturas ya cargadas en memoria si estamos editando ese borrador
+        nuevos.push({
+          ...data,
+          id: docSnap.id,
+          facturas: existente && existente._facturasCargadas ? existente.facturas : (data.facturas || []),
+          _facturasCargadas: existente ? existente._facturasCargadas : false
+        });
+      });
+      state.docs = nuevos;
+      document.getElementById('save-status').textContent = '☁️ Sincronizado ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (!state.activeDocId) renderHome();
+    }, (err) => {
+      document.getElementById('save-status').textContent = '⚠️ Error de permisos en Firestore';
+      console.error(err);
+    });
+
+  // Escuchar plantillas
+  unsubPlantillas = userRef(uid).collection('plantillas')
+    .onSnapshot((snap) => {
+      const list = [];
+      snap.forEach(s => list.push({ ...s.data(), id: s.id }));
+      state.plantillas = list;
+      if (!state.activeDocId) renderHome();
+    });
+}
+
+// Migrar borradores previos guardados localmente antes de conectar Firestore
+async function migrarLocalStorageSiExiste(uid) {
   try {
     const raw = localStorage.getItem('tk_viaticos_state_v2');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.docs)) state = parsed;
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.docs) && parsed.docs.length > 0) {
+      for (const d of parsed.docs) {
+        await guardarDocumentoEnNube(uid, d);
+      }
+      if (Array.isArray(parsed.plantillas)) {
+        for (const p of parsed.plantillas) {
+          await userRef(uid).collection('plantillas').doc(p.id).set(p);
+        }
+      }
+      localStorage.removeItem('tk_viaticos_state_v2');
+      toast('Borradores locales migrados a la nube.');
     }
   } catch (e) {}
 }
 
-function guardarEstadoAhora() {
+// Guarda metadatos del borrador + subcolección de facturas (evita límite de 1MB por doc)
+async function guardarDocumentoEnNube(uid, doc) {
+  if (!uid || !doc) return;
+  const docRef = userRef(uid).collection('borradores').doc(doc.id);
+  const { facturas, _facturasCargadas, ...meta } = doc;
+  meta.facturasCount = (facturas || []).length;
+  meta.updatedAt = new Date().toISOString();
+
+  await docRef.set(meta, { merge: true });
+
+  // Guardar cada factura como subdocumento individual (soporta imágenes sin límite de 1MB global)
+  const facCol = docRef.collection('facturas');
+  const existingSnap = await facCol.get();
+  const batch = db.batch();
+  const keepIds = new Set();
+
+  (facturas || []).forEach((f, idx) => {
+    const fid = f._fid || ('fac_' + idx + '_' + (f.numero || '').replace(/[^a-zA-Z0-9]/g, ''));
+    f._fid = fid;
+    keepIds.add(fid);
+    batch.set(facCol.doc(fid), { ...f, _orden: idx });
+  });
+
+  existingSnap.forEach(s => {
+    if (!keepIds.has(s.id)) batch.delete(s.ref);
+  });
+
+  await batch.commit();
+}
+
+async function cargarFacturasDeDocumento(uid, doc) {
+  const snap = await userRef(uid).collection('borradores').doc(doc.id).collection('facturas')
+    .orderBy('_orden', 'asc')
+    .get();
+  const list = [];
+  snap.forEach(s => list.push({ ...s.data(), _fid: s.id }));
+  doc.facturas = list;
+  doc._facturasCargadas = true;
+}
+
+async function guardarEstadoAhora() {
+  if (!currentUser) return;
+  const doc = getDocActivo();
+  if (!doc) return;
   try {
-    localStorage.setItem('tk_viaticos_state_v2', JSON.stringify(state));
-    document.getElementById('save-status').textContent = 'Guardado ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('save-status').textContent = '☁️ Guardando en nube...';
+    await guardarDocumentoEnNube(currentUser.uid, doc);
+    document.getElementById('save-status').textContent = '☁️ Sincronizado ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   } catch (e) {
-    document.getElementById('save-status').textContent = 'Memoria llena (exporta respaldo .json)';
+    document.getElementById('save-status').textContent = '⚠️ Error al sincronizar';
+    console.error(e);
   }
 }
 
 function programarAutoguardado() {
-  document.getElementById('save-status').textContent = 'Guardando...';
+  document.getElementById('save-status').textContent = 'Pendiente de sincronizar...';
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(guardarEstadoAhora, 450);
+  saveTimer = setTimeout(guardarEstadoAhora, 700);
 }
-
-window.addEventListener('beforeunload', guardarEstadoAhora);
-window.addEventListener('pagehide', guardarEstadoAhora);
 
 function getDocActivo() {
   return state.docs.find(d => d.id === state.activeDocId) || null;
@@ -600,21 +710,21 @@ function getDocActivo() {
 // ============================================================================
 // 4. NAVEGACIÓN Y GESTIÓN DE DOCUMENTOS / PLANTILLAS
 // ============================================================================
-function volverInicio() {
-  guardarEstadoAhora();
+async function volverInicio() {
+  await guardarEstadoAhora();
   state.activeDocId = null;
   document.getElementById('view-workspace').classList.add('hidden');
   document.getElementById('view-home').classList.remove('hidden');
   renderHome();
 }
 
-function iniciarNuevoDocumento(tipo, plantilla = null) {
+async function iniciarNuevoDocumento(tipo, plantilla = null) {
   const id = 'doc_' + Date.now();
   const doc = {
     id,
     tipo,
     updatedAt: new Date().toISOString(),
-    colaborador: plantilla?.colaborador || '',
+    colaborador: plantilla?.colaborador || (currentUser?.displayName || ''),
     departamento: plantilla?.departamento || '',
     proyecto: plantilla?.proyecto || '',
     destino: plantilla?.destino || '',
@@ -628,26 +738,34 @@ function iniciarNuevoDocumento(tipo, plantilla = null) {
       { categoria: 'Hospedaje', descripcion: 'Hotel', monto: 0 }
     ],
     facturas: [],
+    _facturasCargadas: true,
     firmaDataUrl: ''
   };
   state.docs.unshift(doc);
   state.activeDocId = id;
-  guardarEstadoAhora();
+  await guardarEstadoAhora();
   abrirWorkspace(doc);
 }
 
-function abrirDocumento(id) {
+async function abrirDocumento(id) {
   const doc = state.docs.find(d => d.id === id);
-  if (!doc) return;
+  if (!doc || !currentUser) return;
   state.activeDocId = id;
+  toast('Cargando comprobantes desde la nube...');
+  await cargarFacturasDeDocumento(currentUser.uid, doc);
   abrirWorkspace(doc);
 }
 
-function eliminarDocumento(id) {
-  if (!confirm('¿Eliminar este borrador permanentemente?')) return;
-  state.docs = state.docs.filter(d => d.id !== id);
-  guardarEstadoAhora();
-  renderHome();
+async function eliminarDocumento(id) {
+  if (!confirm('¿Eliminar este borrador permanentemente de la nube?')) return;
+  if (!currentUser) return;
+  const docRef = userRef(currentUser.uid).collection('borradores').doc(id);
+  const sub = await docRef.collection('facturas').get();
+  const batch = db.batch();
+  sub.forEach(s => batch.delete(s.ref));
+  batch.delete(docRef);
+  await batch.commit();
+  toast('Borrador eliminado.');
 }
 
 function abrirWorkspace(doc) {
@@ -697,22 +815,23 @@ function onFormChange() {
   programarAutoguardado();
 }
 
-function guardarBorradorManual() {
+async function guardarBorradorManual() {
   onFormChange();
-  guardarEstadoAhora();
-  toast('Borrador guardado correctamente.');
+  await guardarEstadoAhora();
+  toast('Sincronizado con la nube.');
 }
 
 // ============================================================================
 // 5. PLANTILLAS DE GIRAS Y RESPALDO GLOBAL JSON
 // ============================================================================
-function guardarComoPlantilla() {
+async function guardarComoPlantilla() {
   const doc = getDocActivo();
-  if (!doc) return;
+  if (!doc || !currentUser) return;
   const nombre = prompt('Nombre de la plantilla (ej. Gira Guanacaste 3 días):', doc.destino || 'Plantilla Gira');
   if (!nombre) return;
-  state.plantillas.push({
-    id: 'tpl_' + Date.now(),
+  const id = 'tpl_' + Date.now();
+  await userRef(currentUser.uid).collection('plantillas').doc(id).set({
+    id,
     nombre,
     colaborador: doc.colaborador,
     departamento: doc.departamento,
@@ -721,8 +840,7 @@ function guardarComoPlantilla() {
     tipoCambio: doc.tipoCambio,
     presupuesto: JSON.parse(JSON.stringify(doc.presupuesto))
   });
-  guardarEstadoAhora();
-  toast('Plantilla guardada.');
+  toast('Plantilla guardada en la nube.');
 }
 
 function crearDesdePlantilla(tplId) {
@@ -732,8 +850,16 @@ function crearDesdePlantilla(tplId) {
   if (tpl) iniciarNuevoDocumento('gira', tpl);
 }
 
-function exportarRespaldoGlobal() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+async function exportarRespaldoGlobal() {
+  if (!currentUser) return;
+  toast('Preparando respaldo completo...');
+  const fullDocs = [];
+  for (const d of state.docs) {
+    const copia = { ...d };
+    await cargarFacturasDeDocumento(currentUser.uid, copia);
+    fullDocs.push(copia);
+  }
+  const blob = new Blob([JSON.stringify({ docs: fullDocs, plantillas: state.plantillas }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `respaldo_tecnikids_viaticos_${new Date().toISOString().slice(0,10)}.json`;
@@ -742,23 +868,21 @@ function exportarRespaldoGlobal() {
 
 function importarRespaldoGlobal(ev) {
   const file = ev.target.files[0];
-  if (!file) return;
+  if (!file || !currentUser) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       const data = JSON.parse(reader.result);
       if (!Array.isArray(data.docs)) throw new Error('Formato inválido');
-      const reemplazar = confirm('¿Deseas REEMPLAZAR todos los borradores actuales? (Cancelar = Combinar con los existentes)');
-      if (reemplazar) {
-        state = data;
-      } else {
-        const ids = new Set(state.docs.map(d => d.id));
-        data.docs.forEach(d => { if (!ids.has(d.id)) state.docs.push(d); });
-        if (Array.isArray(data.plantillas)) state.plantillas.push(...data.plantillas);
+      for (const d of data.docs) {
+        await guardarDocumentoEnNube(currentUser.uid, d);
       }
-      guardarEstadoAhora();
-      renderHome();
-      toast('Respaldo restaurado con éxito.');
+      if (Array.isArray(data.plantillas)) {
+        for (const p of data.plantillas) {
+          await userRef(currentUser.uid).collection('plantillas').doc(p.id).set(p);
+        }
+      }
+      toast('Respaldo importado y sincronizado en la nube.');
     } catch (e) {
       alert('El archivo seleccionado no es un respaldo válido.');
     }
@@ -773,7 +897,7 @@ function renderHome() {
 
   const cont = document.getElementById('lista-borradores');
   if (!state.docs.length) {
-    cont.innerHTML = '<p style="color:var(--muted); font-size:14px;">Aún no tienes borradores guardados. Inicia una gira o liquidación mensual arriba.</p>';
+    cont.innerHTML = '<p style="color:var(--muted); font-size:14px;">Aún no tienes borradores en la nube. Inicia una gira o liquidación mensual arriba.</p>';
     return;
   }
   cont.innerHTML = `<div class="table-wrap"><table>
@@ -784,7 +908,7 @@ function renderHome() {
           <td><span class="badge ${d.tipo === 'gira' ? 'badge-blue' : 'badge-green'}">${d.tipo === 'gira' ? 'GIRA' : 'MENSUAL'}</span></td>
           <td><strong>${d.destino || 'Sin título'}</strong><br><small style="color:#64748b;">${d.proyecto || ''}</small></td>
           <td>${d.colaborador || '—'}</td>
-          <td>${d.facturas.length}</td>
+          <td>${d.facturasCount ?? (d.facturas ? d.facturas.length : 0)}</td>
           <td>${new Date(d.updatedAt).toLocaleDateString()}</td>
           <td style="white-space:nowrap;">
             <button class="btn-sm btn-primary" onclick="abrirDocumento('${d.id}')">Abrir</button>
@@ -857,7 +981,7 @@ async function comprimirImagenDataUrl(dataUrl) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const max = 1100;
+      const max = 950;
       let w = img.width, h = img.height;
       if (w > max || h > max) {
         if (w > h) { h = Math.round(h * max / w); w = max; }
@@ -866,7 +990,7 @@ async function comprimirImagenDataUrl(dataUrl) {
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(c.toDataURL('image/jpeg', 0.78));
+      resolve(c.toDataURL('image/jpeg', 0.72));
     };
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
@@ -877,11 +1001,11 @@ async function pdfBufferAImagen(arrayBuffer) {
   try {
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 1.5 });
+    const viewport = page.getViewport({ scale: 1.4 });
     const c = document.createElement('canvas');
     c.width = viewport.width; c.height = viewport.height;
     await page.render({ canvasContext: c.getContext('2d'), viewport }).promise;
-    return await comprimirImagenDataUrl(c.toDataURL('image/jpeg', 0.8));
+    return await comprimirImagenDataUrl(c.toDataURL('image/jpeg', 0.75));
   } catch (e) {
     return '';
   }
@@ -940,6 +1064,7 @@ async function procesarArchivosSubidos(fileList) {
 
       if (xmlData) {
         doc.facturas.push({
+          _fid: 'fac_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
           fecha: xmlData.fecha,
           proveedor: xmlData.proveedor,
           cedula: xmlData.cedula,
@@ -955,6 +1080,7 @@ async function procesarArchivosSubidos(fileList) {
       const txt = await file.text();
       const xmlData = parsearXMLHacienda(txt);
       doc.facturas.push({
+        _fid: 'fac_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
         fecha: xmlData.fecha,
         proveedor: xmlData.proveedor,
         cedula: xmlData.cedula,
@@ -969,6 +1095,7 @@ async function procesarArchivosSubidos(fileList) {
       const buf = await file.arrayBuffer();
       const img = await pdfBufferAImagen(buf);
       doc.facturas.push({
+        _fid: 'fac_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
         fecha: new Date().toISOString().slice(0, 10),
         proveedor: file.name.replace(/\.pdf$/i, ''),
         cedula: '',
@@ -996,6 +1123,7 @@ async function procesarArchivosSubidos(fileList) {
       } catch (e) {}
 
       doc.facturas.push({
+        _fid: 'fac_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
         fecha: new Date().toISOString().slice(0, 10),
         proveedor: 'Tiquete Fotografía',
         cedula: '',
@@ -1012,7 +1140,7 @@ async function procesarArchivosSubidos(fileList) {
   log.textContent = `✅ Carga completada. Total de comprobantes: ${doc.facturas.length}`;
   renderFacturas();
   recalcularTodo();
-  guardarEstadoAhora();
+  await guardarEstadoAhora();
 }
 
 function inferirCategoria(nombre) {
@@ -1087,6 +1215,7 @@ function actualizarFactura(idx, campo, valor) {
 function agregarFacturaVacia() {
   const doc = getDocActivo();
   doc.facturas.push({
+    _fid: 'fac_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
     fecha: new Date().toISOString().slice(0, 10),
     proveedor: '',
     cedula: '',
@@ -1104,6 +1233,7 @@ function agregarFacturaVacia() {
 function duplicarFactura(idx) {
   const doc = getDocActivo();
   const copia = JSON.parse(JSON.stringify(doc.facturas[idx]));
+  copia._fid = 'fac_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
   doc.facturas.splice(idx + 1, 0, copia);
   renderFacturas();
   recalcularTodo();
@@ -1286,10 +1416,6 @@ async function exportarExcelOficial() {
   toast('Archivo Excel generado.');
 }
 
-// ============================================================================
-// INICIALIZACIÓN
-// ============================================================================
-cargarEstadoLocal();
 renderHome();
 </script>
 </body>
