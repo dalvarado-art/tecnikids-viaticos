@@ -41,6 +41,7 @@
       border-radius: 8px; font-size: 14px; background: #fff; color: var(--text);
     }
     input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    input[readonly] { background: #f8fafc; color: #475569; }
 
     /* Pantalla de Login Firebase */
     #auth-overlay {
@@ -76,16 +77,17 @@
     .btn-warning { background: var(--warning); color: #fff; }
     .btn-danger { background: var(--danger); color: #fff; }
     .btn-ghost { background: rgba(255,255,255,0.12); color: #fff; }
+    .btn-ghost:hover { background: rgba(255,255,255,0.22); }
     .btn-outline { background: #fff; border: 1px solid var(--border); color: var(--text); }
 
     /* Contenedor y tarjetas */
-    .container { max-width: 1220px; margin: 20px auto; padding: 0 16px 60px; }
+    .container { max-width: 1280px; margin: 20px auto; padding: 0 16px 60px; }
     .card {
       background: var(--card); border-radius: 14px; padding: 20px;
       box-shadow: 0 2px 10px rgba(15,23,42,0.06); margin-bottom: 18px; border: 1px solid #e2e8f0;
     }
     .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
     .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 
     /* Pantalla de Inicio */
@@ -105,7 +107,7 @@
     /* Tablas */
     .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 10px; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { padding: 9px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+    th, td { padding: 8px 9px; border-bottom: 1px solid #e2e8f0; text-align: left; }
     th { background: #f8fafc; font-weight: 700; color: #334155; white-space: nowrap; }
 
     /* Dropzone */
@@ -121,9 +123,50 @@
     .kpi-val { font-size: 20px; font-weight: 800; margin-top: 4px; }
 
     /* Signature pad */
-    #sig-canvas {
+    .sig-pad {
       border: 1.5px dashed #64748b; border-radius: 10px; background: #fff; touch-action: none;
       width: 100%; max-width: 440px; height: 150px; display: block;
+    }
+
+    /* Capa de texto tipo Google Lens en Vista Previa */
+    .lens-wrapper {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      line-height: 0;
+    }
+    .lens-wrapper img {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      user-select: none;
+      -webkit-user-select: none;
+      pointer-events: none;
+    }
+    #lens-text-layer {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+    .lens-word {
+      position: absolute;
+      color: transparent;
+      background: rgba(14, 165, 233, 0.10);
+      border-bottom: 1px dashed rgba(14, 165, 233, 0.45);
+      border-radius: 2px;
+      cursor: text;
+      user-select: text;
+      -webkit-user-select: text;
+      white-space: nowrap;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+    }
+    .lens-word::selection {
+      background: rgba(29, 78, 216, 0.45);
+      color: #ffffff;
     }
 
     .hidden { display: none !important; }
@@ -138,7 +181,7 @@
 </head>
 <body>
 
-<!-- PANTALLA DE AUTENTICACIÓN FIREBASE (RESTRINGIDA A DOMINIOS TECNIKIDS) -->
+<!-- PANTALLA DE AUTENTICACIÓN FIREBASE -->
 <div id="auth-overlay">
   <div class="auth-card">
     <div class="auth-logo">TK</div>
@@ -175,6 +218,7 @@
   <div class="header-actions">
     <button id="btn-install-pwa" class="btn-sm btn-warning hidden" onclick="instalarPWA()">📲 Instalar App</button>
     <button class="btn-sm btn-ghost" onclick="volverInicio()">🏠 Inicio</button>
+    <button class="btn-sm btn-ghost" onclick="abrirPerfil()">👤 Mi Perfil</button>
     <button class="btn-sm btn-ghost" onclick="guardarBorradorManual()">☁️ Sincronizar</button>
     <span id="user-badge" style="font-size:12px; color:#cbd5e1; padding:0 6px;"></span>
     <button class="btn-sm btn-danger" onclick="cerrarSesion()">Salir</button>
@@ -184,6 +228,14 @@
 <div class="container">
   <!-- VISTA 0: MENÚ DE INICIO Y GESTOR DE BORRADORES -->
   <div id="view-home">
+    <div id="alerta-perfil-incompleto" class="card hidden" style="background:#eff6ff; border-color:#93c5fd; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
+      <div>
+        <strong style="color:#1e3a8a;">👋 ¡Completa tu Perfil Corporativo!</strong>
+        <p style="margin:3px 0 0; font-size:13px; color:#334155;">Guarda tu cédula, cuenta IBAN y firma digital una sola vez para que se rellenen automáticamente en todas tus giras y viáticos.</p>
+      </div>
+      <button class="btn-sm btn-primary" onclick="abrirPerfil()">👤 Configurar Mi Perfil</button>
+    </div>
+
     <div class="card">
       <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px;">
         <div>
@@ -203,7 +255,7 @@
         <div class="mode-card" onclick="iniciarNuevoDocumento('gira')">
           <div style="font-size:28px; margin-bottom:8px;">🚐</div>
           <h3 style="margin:0 0 6px;">Presupuesto y Liquidación de Gira</h3>
-          <p style="margin:0; color:var(--muted); font-size:13px;">Para giras nacionales o internacionales (₡ / $), cálculo de diferencias contra presupuesto y respaldo de facturas.</p>
+          <p style="margin:0; color:var(--muted); font-size:13px;">Genera el Excel oficial con pestañas <strong>Presupuesto</strong>, <strong>Liquidación</strong> (con fórmulas SUMIFS y cierre de adelanto) y <strong>Factura N</strong>.</p>
         </div>
         <div class="mode-card" onclick="iniciarNuevoDocumento('viaticos')">
           <div style="font-size:28px; margin-bottom:8px;">🧾</div>
@@ -226,6 +278,67 @@
     </div>
   </div>
 
+  <!-- VISTA PERFIL DE USUARIO -->
+  <div id="view-profile" class="hidden">
+    <div class="card">
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px;">
+        <div>
+          <h2 style="margin:0 0 4px;">👤 Mi Perfil Corporativo</h2>
+          <p style="margin:0; color:var(--muted); font-size:13px;">Estos datos se guardan en tu cuenta de la nube y autocompletan cada nueva gira o liquidación de viáticos.</p>
+        </div>
+        <button class="btn-sm btn-outline" onclick="volverInicio()">← Volver al Inicio</button>
+      </div>
+
+      <div class="grid-3">
+        <div>
+          <label style="font-size:12px; font-weight:600;">Nombre Completo (Encargado)</label>
+          <input id="p-nombre" placeholder="Ej. Diego Alvarado" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Correo Corporativo</label>
+          <input id="p-correo" readonly />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Número de Cédula / Identificación</label>
+          <input id="p-cedula" placeholder="Ej. 1-1234-5678" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Departamento / Puesto</label>
+          <input id="p-departamento" placeholder="Ej. Operaciones / Académico" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Banco</label>
+          <input id="p-banco" placeholder="Ej. Banco Nacional / BAC / BCR" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Número de Cuenta IBAN (para reintegros)</label>
+          <input id="p-iban" placeholder="Ej. CR12 0152 0200 1234 5678 90" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Proyecto / Iniciativa Predeterminada</label>
+          <input id="p-proyecto" placeholder="Ej. Servicio TK" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Director que aprueba habitualmente</label>
+          <input id="p-aprobador" placeholder="Ej. Dirección General" />
+        </div>
+      </div>
+
+      <div style="margin-top:20px;">
+        <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Firma Digital Predeterminada (opcional — se cargará automáticamente en tus liquidaciones)</label>
+        <canvas id="profile-sig-canvas" class="sig-pad" width="440" height="150"></canvas>
+        <div style="margin-top:8px; display:flex; gap:8px;">
+          <button type="button" class="btn-sm btn-outline" onclick="limpiarFirmaPerfil()">🧹 Limpiar Firma</button>
+        </div>
+      </div>
+
+      <div style="margin-top:22px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button type="button" class="btn-primary" style="padding:11px 22px;" onclick="guardarPerfilUsuario()">💾 Guardar Mi Perfil en la Nube</button>
+        <button type="button" class="btn-outline" style="padding:11px 18px;" onclick="volverInicio()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- VISTA 1: ESPACIO DE TRABAJO (4 ETAPAS) -->
   <div id="view-workspace" class="hidden">
     <div class="stepper">
@@ -239,27 +352,34 @@
     <div id="stage-1" class="card">
       <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px;">
         <h3 id="titulo-etapa-1" style="margin:0;">Datos Generales</h3>
-        <div id="acciones-plantilla-gira" style="display:flex; gap:8px;">
-          <button class="btn-sm btn-outline" onclick="guardarComoPlantilla()">⭐ Guardar como Plantilla</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn-sm btn-outline" onclick="aplicarPerfilADocumentoActivo()">📥 Rellenar desde Mi Perfil</button>
+          <div id="acciones-plantilla-gira" style="display:flex; gap:8px;">
+            <button class="btn-sm btn-outline" onclick="guardarComoPlantilla()">⭐ Guardar como Plantilla</button>
+          </div>
         </div>
       </div>
 
       <div class="grid-3">
+        <div id="box-gira-nombre">
+          <label style="font-size:12px; font-weight:600;">Gira N.° / Nombre</label>
+          <input id="f-gira-nombre" placeholder="Ej. GIRA-2026-09-001 — Guanacaste Septiembre" oninput="onFormChange()" />
+        </div>
         <div>
-          <label style="font-size:12px; font-weight:600;">Nombre del Colaborador</label>
+          <label style="font-size:12px; font-weight:600;">Encargado / Colaborador</label>
           <input id="f-colaborador" placeholder="Ej. Diego Alvarado" oninput="onFormChange()" />
         </div>
-        <div>
-          <label style="font-size:12px; font-weight:600;">Departamento / Puesto</label>
-          <input id="f-departamento" placeholder="Ej. Operaciones / Académico" oninput="onFormChange()" />
-        </div>
-        <div>
-          <label style="font-size:12px; font-weight:600;">Proyecto / Centro de Costo</label>
-          <input id="f-proyecto" placeholder="Ej. Implementación STEAM 2026" oninput="onFormChange()" />
+        <div id="box-tipo-gira">
+          <label style="font-size:12px; font-weight:600;">Tipo de Gira</label>
+          <select id="f-tipo-gira" onchange="onFormChange()">
+            <option value="Nacional Recurrente">Nacional Recurrente</option>
+            <option value="Nacional Especial">Nacional Especial</option>
+            <option value="Internacional">Internacional</option>
+          </select>
         </div>
         <div>
           <label style="font-size:12px; font-weight:600;">Destino / Zona / Mes</label>
-          <input id="f-destino" placeholder="Ej. Guanacaste / Noviembre 2026" oninput="onFormChange()" />
+          <input id="f-destino" placeholder="Ej. Nicoya - Tamarindo - Liberia" oninput="onFormChange()" />
         </div>
         <div>
           <label style="font-size:12px; font-weight:600;">Fecha Inicio</label>
@@ -269,29 +389,54 @@
           <label style="font-size:12px; font-weight:600;">Fecha Fin</label>
           <input id="f-fecha-fin" type="date" onchange="onFormChange()" />
         </div>
-        <div id="box-tipo-cambio">
-          <label style="font-size:12px; font-weight:600;">Tipo de Cambio Referencia (₡ por $1)</label>
-          <input id="f-tipo-cambio" type="number" step="0.01" value="515" oninput="onFormChange(); recalcularTodo();" />
+        <div>
+          <label style="font-size:12px; font-weight:600;">Proyecto / Iniciativa</label>
+          <input id="f-proyecto" placeholder="Ej. Servicio TK" oninput="onFormChange()" />
+        </div>
+        <div id="box-fecha-solicitud">
+          <label style="font-size:12px; font-weight:600;">Fecha de Solicitud</label>
+          <input id="f-fecha-solicitud" type="date" onchange="onFormChange()" />
+        </div>
+        <div id="box-aprobada-por">
+          <label style="font-size:12px; font-weight:600;">Aprobada por (Director) y Fecha</label>
+          <input id="f-aprobada-por" placeholder="Ej. Dirección General — 28/08/2026" oninput="onFormChange()" />
         </div>
         <div>
-          <label style="font-size:12px; font-weight:600;">Adelanto Recibido (₡)</label>
+          <label style="font-size:12px; font-weight:600;">Adelanto Solicitado / Recibido (₡)</label>
           <input id="f-adelanto" type="number" step="1" value="0" oninput="onFormChange(); recalcularTodo();" />
+        </div>
+        <div id="box-fecha-adelanto">
+          <label style="font-size:12px; font-weight:600;">Fecha Requerida de Adelanto</label>
+          <input id="f-fecha-adelanto" type="date" onchange="onFormChange()" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">N.° de Cuenta IBAN (si hay reintegro)</label>
+          <input id="f-cuenta-iban" placeholder="Ej. CR12 0152 0200 1234 5678 90" oninput="onFormChange()" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Fecha de Liquidación</label>
+          <input id="f-fecha-liquidacion" type="date" onchange="onFormChange()" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Tipo de Cambio Referencia (₡ por $1)</label>
+          <input id="f-tipo-cambio" type="number" step="0.01" value="515" oninput="onFormChange(); recalcularTodo();" />
         </div>
       </div>
 
       <div id="seccion-presupuesto" style="margin-top:20px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <h4 style="margin:0;">Rubros de Presupuesto Estimado (₡)</h4>
-          <button class="btn-sm btn-outline" onclick="agregarFilaPresupuesto()">+ Agregar Rubro</button>
+          <h4 style="margin:0;">Presupuesto por Categoría (Manual de Viáticos — Parte IV)</h4>
+          <button class="btn-sm btn-outline" onclick="restaurarCategoriasOficiales()">↺ Restaurar 6 Categorías Oficiales</button>
         </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Categoría</th>
-                <th>Descripción</th>
-                <th style="width:160px;">Monto Estimado (₡)</th>
-                <th style="width:60px;"></th>
+                <th style="width:210px;">Categoría</th>
+                <th>Detalle</th>
+                <th style="width:150px;">Monto CRC (₡)</th>
+                <th style="width:150px;">Monto USD ($)</th>
+                <th>Notas</th>
               </tr>
             </thead>
             <tbody id="tbody-presupuesto"></tbody>
@@ -351,15 +496,16 @@
           <thead>
             <tr>
               <th>#</th>
+              <th>N° Consecutivo</th>
               <th>Fecha</th>
-              <th>Proveedor / Comercio</th>
-              <th>Cédula Emisor</th>
-              <th>N° Factura / Consecutivo</th>
+              <th>Nombre Proveedor</th>
+              <th>Cédula / Razón Social</th>
               <th>Categoría</th>
-              <th>Pago</th>
+              <th>Descripción del Gasto</th>
+              <th>Tipo de Pago</th>
               <th>Moneda</th>
               <th>Monto Original</th>
-              <th>Total en Colones (₡)</th>
+              <th>Total CRC (₡)</th>
               <th>Adjunto</th>
               <th>Acciones</th>
             </tr>
@@ -370,11 +516,11 @@
 
       <div class="grid-4" style="margin-top:16px;">
         <div class="kpi">
-          <div class="kpi-label">Presupuesto / Adelanto</div>
+          <div class="kpi-label">Presupuesto Total</div>
           <div class="kpi-val" id="kpi-presupuesto">₡0</div>
         </div>
         <div class="kpi">
-          <div class="kpi-label">Total Liquidado</div>
+          <div class="kpi-label">Total Gasto Real</div>
           <div class="kpi-val" id="kpi-liquidado">₡0</div>
         </div>
         <div class="kpi">
@@ -382,7 +528,7 @@
           <div class="kpi-val" id="kpi-tarjeta">₡0</div>
         </div>
         <div class="kpi">
-          <div class="kpi-label" id="kpi-diff-label">Saldo / Reembolso</div>
+          <div class="kpi-label" id="kpi-diff-label">Cierre de Adelanto</div>
           <div class="kpi-val" id="kpi-diferencia">₡0</div>
         </div>
       </div>
@@ -397,19 +543,20 @@
     <div id="stage-4" class="card hidden">
       <h3 style="margin:0 0 8px;">Firma Digital y Generación de Excel Oficial</h3>
       <p style="margin:0 0 14px; color:var(--muted); font-size:13px;">
-        Dibuja tu firma en el recuadro para estamparla automáticamente en la hoja resumen del archivo Excel junto con todas las imágenes de respaldo.
+        Dibuja tu firma en el recuadro (o usa la guardada en tu perfil) para estamparla en la hoja <strong>Liquidación</strong> junto con las pestañas <strong>Presupuesto</strong> y <strong>Factura N</strong>.
       </p>
 
       <div style="margin-bottom:16px;">
-        <canvas id="sig-canvas" width="440" height="150"></canvas>
-        <div style="margin-top:8px; display:flex; gap:8px;">
+        <canvas id="sig-canvas" class="sig-pad" width="440" height="150"></canvas>
+        <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn-sm btn-outline" onclick="limpiarFirma()">🧹 Limpiar Firma</button>
+          <button class="btn-sm btn-outline" onclick="usarFirmaDePerfilEnDoc()">👤 Usar Firma de Mi Perfil</button>
         </div>
       </div>
 
       <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-top:20px;">
         <button class="btn-success" style="padding:13px 24px; font-size:15px;" onclick="exportarExcelOficial()">
-          📊 Descargar Liquidación en Excel (.xlsx)
+          📊 Descargar Excel Oficial (.xlsx)
         </button>
         <button class="btn-outline" style="padding:11px 18px;" onclick="irEtapa(3)">← Volver a Facturas</button>
       </div>
@@ -417,15 +564,25 @@
   </div>
 </div>
 
-<!-- MODAL VISTA PREVIA DE COMPROBANTE -->
-<div id="img-preview-modal" class="hidden" onclick="cerrarVistaPrevia()" style="position:fixed; inset:0; z-index:9997; background:rgba(15,23,42,0.85); display:flex; align-items:center; justify-content:center; padding:20px;">
-  <div onclick="event.stopPropagation()" style="background:#fff; border-radius:14px; max-width:720px; width:100%; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.4);">
-    <div style="padding:12px 16px; background:#0f172a; color:#fff; display:flex; justify-content:space-between; align-items:center;">
+<!-- MODAL VISTA PREVIA CON SELECCIÓN DE TEXTO ESTILO GOOGLE LENS -->
+<div id="img-preview-modal" class="hidden" onclick="cerrarVistaPrevia()" style="position:fixed; inset:0; z-index:9997; background:rgba(15,23,42,0.85); display:flex; align-items:center; justify-content:center; padding:16px;">
+  <div onclick="event.stopPropagation()" style="background:#fff; border-radius:14px; max-width:820px; width:100%; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.4);">
+    <div style="padding:12px 16px; background:#0f172a; color:#fff; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px;">
       <strong id="img-preview-title" style="font-size:14px;">Vista previa del comprobante</strong>
-      <button class="btn-sm btn-danger" onclick="cerrarVistaPrevia()">✕ Cerrar</button>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="btn-lens-scan" class="btn-sm btn-primary" onclick="activarLensEnModal()">🔍 Detectar texto seleccionable</button>
+        <button id="btn-lens-copy" class="btn-sm btn-success hidden" onclick="copiarTextoSeleccionadoLens()">📋 Copiar selección</button>
+        <button class="btn-sm btn-danger" onclick="cerrarVistaPrevia()">✕ Cerrar</button>
+      </div>
+    </div>
+    <div id="lens-status-bar" style="padding:6px 16px; background:#eff6ff; color:#1e40af; font-size:12px; font-weight:600; border-bottom:1px solid #dbeafe;">
+      💡 Selecciona directamente cualquier texto resaltado sobre la factura o pulsa "Detectar texto seleccionable" para copiar datos.
     </div>
     <div style="padding:16px; overflow:auto; text-align:center; background:#f8fafc;">
-      <img id="img-preview-el" src="" alt="Comprobante" style="max-width:100%; max-height:72vh; border-radius:8px; border:1px solid #cbd5e1;" />
+      <div class="lens-wrapper" id="lens-container">
+        <img id="img-preview-el" src="" alt="Comprobante" />
+        <div id="lens-text-layer"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -460,12 +617,12 @@ const db = firebase.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
-// Habilitar caché offline nativa de Firestore
 db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 
 let currentUser = null;
 let unsubDocs = null;
 let unsubPlantillas = null;
+let unsubPerfil = null;
 
 auth.onAuthStateChanged(async (user) => {
   const overlay = document.getElementById('auth-overlay');
@@ -487,8 +644,10 @@ auth.onAuthStateChanged(async (user) => {
     currentUser = null;
     if (unsubDocs) { unsubDocs(); unsubDocs = null; }
     if (unsubPlantillas) { unsubPlantillas(); unsubPlantillas = null; }
+    if (unsubPerfil) { unsubPerfil(); unsubPerfil = null; }
     state.docs = [];
     state.plantillas = [];
+    state.perfil = null;
     overlay.classList.remove('hidden');
     badge.textContent = '';
   }
@@ -532,7 +691,7 @@ function cerrarSesion() {
 }
 
 // ============================================================================
-// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v5)
+// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v8)
 // ============================================================================
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -579,7 +738,7 @@ async function instalarPWA() {
 
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       const swCode = `
-        const CACHE = 'tecnikids-viaticos-v5';
+        const CACHE = 'tecnikids-viaticos-v8';
         self.addEventListener('install', e => {
           self.skipWaiting();
           e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./']).catch(()=>{})));
@@ -603,12 +762,42 @@ async function instalarPWA() {
 })();
 
 // ============================================================================
-// 3. ESTADO GLOBAL Y SINCRONIZACIÓN EN TIEMPO REAL CON FIRESTORE
+// 3. CATEGORÍAS OFICIALES TECNIKIDS Y ESTADO GLOBAL EN FIRESTORE
 // ============================================================================
-const CATEGORIAS = ['Alimentación', 'Hospedaje', 'Combustible', 'Peajes / Parqueo', 'Transporte / Uber', 'Materiales / Imprevistos', 'Otros'];
+const CATEGORIAS_LIQUIDACION = [
+  'Hospedaje',
+  'Alimentación',
+  'Combustible / Transporte',
+  'Parqueos y peajes',
+  'Materiales de la actividad',
+  'Otros autorizados'
+];
+
+function crearPresupuestoOficialBase() {
+  return [
+    { labelPresupuesto: 'Hospedajes', categoriaMatch: 'Hospedaje', detalle: '', montoCrc: 0, montoUsd: 0, notas: '' },
+    { labelPresupuesto: 'Alimentación', categoriaMatch: 'Alimentación', detalle: '', montoCrc: 0, montoUsd: 0, notas: '' },
+    { labelPresupuesto: 'Combustible / Transporte', categoriaMatch: 'Combustible / Transporte', detalle: '', montoCrc: 0, montoUsd: 0, notas: '' },
+    { labelPresupuesto: 'Parqueos y peajes', categoriaMatch: 'Parqueos y peajes', detalle: '', montoCrc: 0, montoUsd: 0, notas: '' },
+    { labelPresupuesto: 'Materiales de la actividad', categoriaMatch: 'Materiales de la actividad', detalle: '', montoCrc: 0, montoUsd: 0, notas: '' },
+    { labelPresupuesto: 'Otros autorizados', categoriaMatch: 'Otros autorizados', detalle: '', montoCrc: 0, montoUsd: 0, notas: '' }
+  ];
+}
+
+function normalizarCategoriaFactura(cat) {
+  const c = (cat || '').toLowerCase();
+  if (c.includes('hosped')) return 'Hospedaje';
+  if (c.includes('aliment')) return 'Alimentación';
+  if (c.includes('combust') || c.includes('transport') || c.includes('uber')) return 'Combustible / Transporte';
+  if (c.includes('parqueo') || c.includes('peaje')) return 'Parqueos y peajes';
+  if (c.includes('material')) return 'Materiales de la actividad';
+  return 'Otros autorizados';
+}
+
 let state = {
   docs: [],
   plantillas: [],
+  perfil: null,
   activeDocId: null
 };
 let saveTimer = null;
@@ -628,6 +817,17 @@ function userRef(uid) {
 function iniciarListenersNube(uid) {
   document.getElementById('save-status').textContent = 'Sincronizando nube...';
 
+  // Escuchar Perfil de Usuario
+  unsubPerfil = userRef(uid).collection('perfil').doc('datos')
+    .onSnapshot((snap) => {
+      state.perfil = snap.exists ? snap.data() : null;
+      if (state.perfil?.nombre) {
+        document.getElementById('user-badge').textContent = state.perfil.nombre;
+      }
+      actualizarBannerPerfilIncompleto();
+    });
+
+  // Escuchar Borradores
   unsubDocs = userRef(uid).collection('borradores')
     .orderBy('updatedAt', 'desc')
     .onSnapshot((snap) => {
@@ -644,19 +844,122 @@ function iniciarListenersNube(uid) {
       });
       state.docs = nuevos;
       document.getElementById('save-status').textContent = '☁️ Sincronizado ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      if (!state.activeDocId) renderHome();
+      if (!state.activeDocId && document.getElementById('view-profile').classList.contains('hidden')) {
+        renderHome();
+      }
     }, (err) => {
       document.getElementById('save-status').textContent = '⚠️ Error de permisos en Firestore';
       console.error(err);
     });
 
+  // Escuchar Plantillas
   unsubPlantillas = userRef(uid).collection('plantillas')
     .onSnapshot((snap) => {
       const list = [];
       snap.forEach(s => list.push({ ...s.data(), id: s.id }));
       state.plantillas = list;
-      if (!state.activeDocId) renderHome();
+      if (!state.activeDocId && document.getElementById('view-profile').classList.contains('hidden')) {
+        renderHome();
+      }
     });
+}
+
+function actualizarBannerPerfilIncompleto() {
+  const banner = document.getElementById('alerta-perfil-incompleto');
+  const incompleto = !state.perfil || !state.perfil.iban || !state.perfil.cedula;
+  banner.classList.toggle('hidden', !incompleto);
+}
+
+// ============================================================================
+// 3B. GESTIÓN DE PERFIL DE USUARIO (NUBE)
+// ============================================================================
+function abrirPerfil() {
+  if (state.activeDocId) {
+    guardarEstadoAhora();
+    state.activeDocId = null;
+  }
+  document.getElementById('view-home').classList.add('hidden');
+  document.getElementById('view-workspace').classList.add('hidden');
+  document.getElementById('view-profile').classList.remove('hidden');
+
+  const p = state.perfil || {};
+  document.getElementById('p-nombre').value = p.nombre || currentUser?.displayName || '';
+  document.getElementById('p-correo').value = currentUser?.email || '';
+  document.getElementById('p-cedula').value = p.cedula || '';
+  document.getElementById('p-departamento').value = p.departamento || '';
+  document.getElementById('p-banco').value = p.banco || '';
+  document.getElementById('p-iban').value = p.iban || '';
+  document.getElementById('p-proyecto').value = p.proyecto || 'Servicio TK';
+  document.getElementById('p-aprobador').value = p.aprobador || '';
+
+  cargarFirmaEnCanvasId('profile-sig-canvas', p.firmaDataUrl || '');
+}
+
+async function guardarPerfilUsuario() {
+  if (!currentUser) return;
+  const profCanvas = document.getElementById('profile-sig-canvas');
+  const datosPerfil = {
+    nombre: document.getElementById('p-nombre').value.trim(),
+    correo: currentUser.email || '',
+    cedula: document.getElementById('p-cedula').value.trim(),
+    departamento: document.getElementById('p-departamento').value.trim(),
+    banco: document.getElementById('p-banco').value.trim(),
+    iban: document.getElementById('p-iban').value.trim(),
+    proyecto: document.getElementById('p-proyecto').value.trim(),
+    aprobador: document.getElementById('p-aprobador').value.trim(),
+    firmaDataUrl: profCanvas.toDataURL('image/png'),
+    updatedAt: new Date().toISOString()
+  };
+
+  try {
+    await userRef(currentUser.uid).collection('perfil').doc('datos').set(datosPerfil, { merge: true });
+    state.perfil = datosPerfil;
+    toast('✅ Perfil guardado en la nube.');
+    volverInicio();
+  } catch (e) {
+    alert('Error al guardar perfil: ' + e.message);
+  }
+}
+
+function limpiarFirmaPerfil() {
+  const c = document.getElementById('profile-sig-canvas');
+  c.getContext('2d').clearRect(0, 0, c.width, c.height);
+}
+
+function aplicarPerfilADocumentoActivo() {
+  const doc = getDocActivo();
+  if (!doc) return;
+  if (!state.perfil) {
+    toast('Aún no has guardado datos en Mi Perfil.');
+    return;
+  }
+  const p = state.perfil;
+  if (p.nombre) doc.colaborador = p.nombre;
+  if (p.iban) doc.cuentaIban = p.iban;
+  if (p.proyecto) doc.proyecto = p.proyecto;
+  if (p.aprobador && !doc.aprobadaPor) doc.aprobadaPor = p.aprobador;
+  if (p.firmaDataUrl) doc.firmaDataUrl = p.firmaDataUrl;
+
+  document.getElementById('f-colaborador').value = doc.colaborador || '';
+  document.getElementById('f-cuenta-iban').value = doc.cuentaIban || '';
+  document.getElementById('f-proyecto').value = doc.proyecto || '';
+  document.getElementById('f-aprobada-por').value = doc.aprobadaPor || '';
+  cargarFirmaEnCanvas(doc.firmaDataUrl);
+
+  programarAutoguardado();
+  toast('📥 Datos y firma cargados desde Mi Perfil.');
+}
+
+function usarFirmaDePerfilEnDoc() {
+  const doc = getDocActivo();
+  if (!doc || !state.perfil?.firmaDataUrl) {
+    toast('No hay una firma guardada en Mi Perfil.');
+    return;
+  }
+  doc.firmaDataUrl = state.perfil.firmaDataUrl;
+  cargarFirmaEnCanvas(doc.firmaDataUrl);
+  programarAutoguardado();
+  toast('Firma cargada desde Mi Perfil.');
 }
 
 async function migrarLocalStorageSiExiste(uid) {
@@ -697,7 +1000,8 @@ async function guardarDocumentoEnNube(uid, doc) {
     const fid = f._fid || ('fac_' + idx + '_' + (f.numero || '').replace(/[^a-zA-Z0-9]/g, ''));
     f._fid = fid;
     keepIds.add(fid);
-    batch.set(facCol.doc(fid), { ...f, _orden: idx });
+    const { _lensWords, ...cleanFac } = f;
+    batch.set(facCol.doc(fid), { ...cleanFac, _orden: idx });
   });
 
   existingSnap.forEach(s => {
@@ -745,35 +1049,47 @@ function getDocActivo() {
 // 4. NAVEGACIÓN Y GESTIÓN DE DOCUMENTOS / PLANTILLAS
 // ============================================================================
 async function volverInicio() {
-  await guardarEstadoAhora();
-  state.activeDocId = null;
+  if (state.activeDocId) {
+    await guardarEstadoAhora();
+    state.activeDocId = null;
+  }
   document.getElementById('view-workspace').classList.add('hidden');
+  document.getElementById('view-profile').classList.add('hidden');
   document.getElementById('view-home').classList.remove('hidden');
   renderHome();
 }
 
 async function iniciarNuevoDocumento(tipo, plantilla = null) {
   const id = 'doc_' + Date.now();
+  const hoy = new Date().toISOString().slice(0, 10);
+  const year = hoy.slice(0, 4);
+  const month = hoy.slice(5, 7);
+  const p = state.perfil || {};
+
   const doc = {
     id,
     tipo,
     updatedAt: new Date().toISOString(),
-    colaborador: plantilla?.colaborador || (currentUser?.displayName || ''),
-    departamento: plantilla?.departamento || '',
-    proyecto: plantilla?.proyecto || '',
+    giraNombre: plantilla?.giraNombre || (tipo === 'gira' ? `GIRA-${year}-${month}-001 — ` : `VIATICOS-${year}-${month}`),
+    colaborador: plantilla?.colaborador || p.nombre || (currentUser?.displayName || ''),
+    cedulaColaborador: p.cedula || '',
+    correoColaborador: p.correo || currentUser?.email || '',
+    tipoGira: plantilla?.tipoGira || 'Nacional Recurrente',
+    proyecto: plantilla?.proyecto || p.proyecto || 'Servicio TK',
     destino: plantilla?.destino || '',
-    fechaInicio: new Date().toISOString().slice(0, 10),
-    fechaFin: new Date().toISOString().slice(0, 10),
+    fechaInicio: hoy,
+    fechaFin: hoy,
+    fechaSolicitud: hoy,
+    aprobadaPor: plantilla?.aprobadaPor || p.aprobador || '',
+    fechaAdelanto: hoy,
+    cuentaIban: plantilla?.cuentaIban || p.iban || '',
+    fechaLiquidacion: hoy,
     tipoCambio: plantilla?.tipoCambio || 515,
     adelanto: 0,
-    presupuesto: plantilla?.presupuesto ? JSON.parse(JSON.stringify(plantilla.presupuesto)) : [
-      { categoria: 'Alimentación', descripcion: 'Comidas en ruta', monto: 0 },
-      { categoria: 'Combustible', descripcion: 'Gasolina / Diésel', monto: 0 },
-      { categoria: 'Hospedaje', descripcion: 'Hotel', monto: 0 }
-    ],
+    presupuesto: plantilla?.presupuesto ? JSON.parse(JSON.stringify(plantilla.presupuesto)) : crearPresupuestoOficialBase(),
     facturas: [],
     _facturasCargadas: true,
-    firmaDataUrl: ''
+    firmaDataUrl: p.firmaDataUrl || ''
   };
   state.docs.unshift(doc);
   state.activeDocId = id;
@@ -804,21 +1120,52 @@ async function eliminarDocumento(id) {
 
 function abrirWorkspace(doc) {
   document.getElementById('view-home').classList.add('hidden');
+  document.getElementById('view-profile').classList.add('hidden');
   document.getElementById('view-workspace').classList.remove('hidden');
 
+  const esGira = doc.tipo === 'gira';
   document.getElementById('titulo-etapa-1').textContent =
-    doc.tipo === 'gira' ? '🚐 Presupuesto y Liquidación de Gira' : '🧾 Liquidación Mensual de Viáticos';
-  document.getElementById('seccion-presupuesto').classList.toggle('hidden', doc.tipo !== 'gira');
-  document.getElementById('acciones-plantilla-gira').classList.toggle('hidden', doc.tipo !== 'gira');
+    esGira ? '🚐 Presupuesto y Liquidación de Gira' : '🧾 Liquidación Mensual de Viáticos';
+  document.getElementById('seccion-presupuesto').classList.toggle('hidden', !esGira);
+  document.getElementById('acciones-plantilla-gira').classList.toggle('hidden', !esGira);
+  document.getElementById('box-gira-nombre').classList.toggle('hidden', !esGira);
+  document.getElementById('box-tipo-gira').classList.toggle('hidden', !esGira);
+  document.getElementById('box-fecha-solicitud').classList.toggle('hidden', !esGira);
+  document.getElementById('box-aprobada-por').classList.toggle('hidden', !esGira);
+  document.getElementById('box-fecha-adelanto').classList.toggle('hidden', !esGira);
 
+  if (!Array.isArray(doc.presupuesto) || doc.presupuesto.length !== 6 || !doc.presupuesto[0].labelPresupuesto) {
+    const base = crearPresupuestoOficialBase();
+    if (Array.isArray(doc.presupuesto)) {
+      doc.presupuesto.forEach(old => {
+        const norm = normalizarCategoriaFactura(old.categoria || old.labelPresupuesto);
+        const target = base.find(b => b.categoriaMatch === norm);
+        if (target) {
+          target.detalle = old.detalle || old.descripcion || target.detalle;
+          target.montoCrc = (target.montoCrc || 0) + (parseFloat(old.montoCrc ?? old.monto) || 0);
+          target.montoUsd = (target.montoUsd || 0) + (parseFloat(old.montoUsd) || 0);
+          target.notas = old.notas || target.notas;
+        }
+      });
+    }
+    doc.presupuesto = base;
+  }
+
+  const hoy = new Date().toISOString().slice(0, 10);
+  document.getElementById('f-gira-nombre').value = doc.giraNombre || '';
   document.getElementById('f-colaborador').value = doc.colaborador || '';
-  document.getElementById('f-departamento').value = doc.departamento || '';
-  document.getElementById('f-proyecto').value = doc.proyecto || '';
+  document.getElementById('f-tipo-gira').value = doc.tipoGira || 'Nacional Recurrente';
   document.getElementById('f-destino').value = doc.destino || '';
-  document.getElementById('f-fecha-inicio').value = doc.fechaInicio || '';
-  document.getElementById('f-fecha-fin').value = doc.fechaFin || '';
-  document.getElementById('f-tipo-cambio').value = doc.tipoCambio || 515;
+  document.getElementById('f-fecha-inicio').value = doc.fechaInicio || hoy;
+  document.getElementById('f-fecha-fin').value = doc.fechaFin || hoy;
+  document.getElementById('f-proyecto').value = doc.proyecto || '';
+  document.getElementById('f-fecha-solicitud').value = doc.fechaSolicitud || hoy;
+  document.getElementById('f-aprobada-por').value = doc.aprobadaPor || '';
   document.getElementById('f-adelanto').value = doc.adelanto || 0;
+  document.getElementById('f-fecha-adelanto').value = doc.fechaAdelanto || hoy;
+  document.getElementById('f-cuenta-iban').value = doc.cuentaIban || '';
+  document.getElementById('f-fecha-liquidacion').value = doc.fechaLiquidacion || hoy;
+  document.getElementById('f-tipo-cambio').value = doc.tipoCambio || 515;
 
   renderPresupuesto();
   renderFacturas();
@@ -837,19 +1184,29 @@ function irEtapa(num) {
 function onFormChange() {
   const doc = getDocActivo();
   if (!doc) return;
+  doc.giraNombre = document.getElementById('f-gira-nombre').value;
   doc.colaborador = document.getElementById('f-colaborador').value;
-  doc.departamento = document.getElementById('f-departamento').value;
-  doc.proyecto = document.getElementById('f-proyecto').value;
+  doc.tipoGira = document.getElementById('f-tipo-gira').value;
   doc.destino = document.getElementById('f-destino').value;
   doc.fechaInicio = document.getElementById('f-fecha-inicio').value;
   doc.fechaFin = document.getElementById('f-fecha-fin').value;
-  doc.tipoCambio = parseFloat(document.getElementById('f-tipo-cambio').value) || 515;
+  doc.proyecto = document.getElementById('f-proyecto').value;
+  doc.fechaSolicitud = document.getElementById('f-fecha-solicitud').value;
+  doc.aprobadaPor = document.getElementById('f-aprobada-por').value;
   doc.adelanto = parseFloat(document.getElementById('f-adelanto').value) || 0;
+  doc.fechaAdelanto = document.getElementById('f-fecha-adelanto').value;
+  doc.cuentaIban = document.getElementById('f-cuenta-iban').value;
+  doc.fechaLiquidacion = document.getElementById('f-fecha-liquidacion').value;
+  doc.tipoCambio = parseFloat(document.getElementById('f-tipo-cambio').value) || 515;
   doc.updatedAt = new Date().toISOString();
   programarAutoguardado();
 }
 
 async function guardarBorradorManual() {
+  if (!document.getElementById('view-profile').classList.contains('hidden')) {
+    await guardarPerfilUsuario();
+    return;
+  }
   onFormChange();
   await guardarEstadoAhora();
   toast('Sincronizado con la nube.');
@@ -861,16 +1218,19 @@ async function guardarBorradorManual() {
 async function guardarComoPlantilla() {
   const doc = getDocActivo();
   if (!doc || !currentUser) return;
-  const nombre = prompt('Nombre de la plantilla (ej. Gira Guanacaste 3 días):', doc.destino || 'Plantilla Gira');
+  const nombre = prompt('Nombre de la plantilla (ej. Gira Guanacaste 4 días):', doc.giraNombre || doc.destino || 'Plantilla Gira');
   if (!nombre) return;
   const id = 'tpl_' + Date.now();
   await userRef(currentUser.uid).collection('plantillas').doc(id).set({
     id,
     nombre,
+    giraNombre: doc.giraNombre,
     colaborador: doc.colaborador,
-    departamento: doc.departamento,
+    tipoGira: doc.tipoGira,
     proyecto: doc.proyecto,
     destino: doc.destino,
+    aprobadaPor: doc.aprobadaPor,
+    cuentaIban: doc.cuentaIban,
     tipoCambio: doc.tipoCambio,
     presupuesto: JSON.parse(JSON.stringify(doc.presupuesto))
   });
@@ -893,7 +1253,7 @@ async function exportarRespaldoGlobal() {
     await cargarFacturasDeDocumento(currentUser.uid, copia);
     fullDocs.push(copia);
   }
-  const blob = new Blob([JSON.stringify({ docs: fullDocs, plantillas: state.plantillas }, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ docs: fullDocs, plantillas: state.plantillas, perfil: state.perfil }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `respaldo_tecnikids_viaticos_${new Date().toISOString().slice(0,10)}.json`;
@@ -916,6 +1276,9 @@ function importarRespaldoGlobal(ev) {
           await userRef(currentUser.uid).collection('plantillas').doc(p.id).set(p);
         }
       }
+      if (data.perfil) {
+        await userRef(currentUser.uid).collection('perfil').doc('datos').set(data.perfil, { merge: true });
+      }
       toast('Respaldo importado y sincronizado en la nube.');
     } catch (e) {
       alert('El archivo seleccionado no es un respaldo válido.');
@@ -935,12 +1298,12 @@ function renderHome() {
     return;
   }
   cont.innerHTML = `<div class="table-wrap"><table>
-    <thead><tr><th>Tipo</th><th>Destino / Mes</th><th>Colaborador</th><th>Facturas</th><th>Actualizado</th><th>Acciones</th></tr></thead>
+    <thead><tr><th>Tipo</th><th>Gira / Destino</th><th>Encargado</th><th>Facturas</th><th>Actualizado</th><th>Acciones</th></tr></thead>
     <tbody>
       ${state.docs.map(d => `
         <tr>
           <td><span class="badge ${d.tipo === 'gira' ? 'badge-blue' : 'badge-green'}">${d.tipo === 'gira' ? 'GIRA' : 'MENSUAL'}</span></td>
-          <td><strong>${d.destino || 'Sin título'}</strong><br><small style="color:#64748b;">${d.proyecto || ''}</small></td>
+          <td><strong>${d.giraNombre || d.destino || 'Sin título'}</strong><br><small style="color:#64748b;">${d.destino || ''} • ${d.proyecto || ''}</small></td>
           <td>${d.colaborador || '—'}</td>
           <td>${d.facturasCount ?? (d.facturas ? d.facturas.length : 0)}</td>
           <td>${new Date(d.updatedAt).toLocaleDateString()}</td>
@@ -955,7 +1318,7 @@ function renderHome() {
 }
 
 // ============================================================================
-// 6. TABLA DE PRESUPUESTO (ETAPA 1)
+// 6. TABLA DE PRESUPUESTO OFICIAL (6 CATEGORÍAS)
 // ============================================================================
 function renderPresupuesto() {
   const doc = getDocActivo();
@@ -963,21 +1326,19 @@ function renderPresupuesto() {
   const tbody = document.getElementById('tbody-presupuesto');
   tbody.innerHTML = doc.presupuesto.map((item, idx) => `
     <tr>
-      <td>
-        <select onchange="actualizarPresupuesto(${idx}, 'categoria', this.value)">
-          ${CATEGORIAS.map(c => `<option value="${c}" ${c === item.categoria ? 'selected' : ''}>${c}</option>`).join('')}
-        </select>
-      </td>
-      <td><input value="${item.descripcion || ''}" oninput="actualizarPresupuesto(${idx}, 'descripcion', this.value)" /></td>
-      <td><input type="number" value="${item.monto || 0}" oninput="actualizarPresupuesto(${idx}, 'monto', parseFloat(this.value)||0)" /></td>
-      <td><button class="btn-sm btn-danger" onclick="eliminarFilaPresupuesto(${idx})">✕</button></td>
+      <td style="font-weight:700; color:#1e3a8a; background:#f8fafc;">${item.labelPresupuesto}</td>
+      <td><input value="${item.detalle || ''}" placeholder="Ej. Hoteles / Comidas" oninput="actualizarPresupuesto(${idx}, 'detalle', this.value)" /></td>
+      <td><input type="number" value="${item.montoCrc || ''}" placeholder="0" oninput="actualizarPresupuesto(${idx}, 'montoCrc', parseFloat(this.value)||0)" /></td>
+      <td><input type="number" step="0.01" value="${item.montoUsd || ''}" placeholder="0.00" oninput="actualizarPresupuesto(${idx}, 'montoUsd', parseFloat(this.value)||0)" /></td>
+      <td><input value="${item.notas || ''}" placeholder="Notas adicionales" oninput="actualizarPresupuesto(${idx}, 'notas', this.value)" /></td>
     </tr>
   `).join('');
 }
 
-function agregarFilaPresupuesto() {
+function restaurarCategoriasOficiales() {
   const doc = getDocActivo();
-  doc.presupuesto.push({ categoria: 'Otros', descripcion: '', monto: 0 });
+  if (!doc) return;
+  doc.presupuesto = crearPresupuestoOficialBase();
   renderPresupuesto();
   programarAutoguardado();
 }
@@ -988,15 +1349,8 @@ function actualizarPresupuesto(idx, campo, valor) {
   programarAutoguardado();
 }
 
-function eliminarFilaPresupuesto(idx) {
-  const doc = getDocActivo();
-  doc.presupuesto.splice(idx, 1);
-  renderPresupuesto();
-  programarAutoguardado();
-}
-
 // ============================================================================
-// 7. PROCESAMIENTO DE ARCHIVOS (.ZIP HACIENDA, .XML, .PDF E IMÁGENES)
+// 7. PROCESAMIENTO DE ARCHIVOS (.ZIP HACIENDA CR, .XML, .PDF E IMÁGENES + OCR)
 // ============================================================================
 if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1015,7 +1369,7 @@ async function comprimirImagenDataUrl(dataUrl) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const max = 950;
+      const max = 1280;
       let w = img.width, h = img.height;
       if (w > max || h > max) {
         if (w > h) { h = Math.round(h * max / w); w = max; }
@@ -1024,9 +1378,35 @@ async function comprimirImagenDataUrl(dataUrl) {
       const c = document.createElement('canvas');
       c.width = w; c.height = h;
       c.getContext('2d').drawImage(img, 0, 0, w, h);
-      resolve(c.toDataURL('image/jpeg', 0.72));
+      resolve(c.toDataURL('image/jpeg', 0.80));
     };
     img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function prepararImagenParaOCR(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = img.width < 1200 ? 1.6 : 1;
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const imgData = ctx.getImageData(0, 0, w, h);
+      const d = imgData.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+        const contrast = Math.min(255, Math.max(0, (gray - 128) * 1.45 + 128));
+        d[i] = d[i + 1] = d[i + 2] = contrast;
+      }
+      ctx.putImageData(imgData, 0, 0);
+      resolve({ ocrDataUrl: c.toDataURL('image/png'), scale, origW: img.width, origH: img.height });
+    };
+    img.onerror = () => resolve({ ocrDataUrl: dataUrl, scale: 1, origW: 0, origH: 0 });
     img.src = dataUrl;
   });
 }
@@ -1035,11 +1415,11 @@ async function pdfBufferAImagen(arrayBuffer) {
   try {
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const page = await pdf.getPage(1);
-    const viewport = page.getViewport({ scale: 1.4 });
+    const viewport = page.getViewport({ scale: 1.5 });
     const c = document.createElement('canvas');
     c.width = viewport.width; c.height = viewport.height;
     await page.render({ canvasContext: c.getContext('2d'), viewport }).promise;
-    return await comprimirImagenDataUrl(c.toDataURL('image/jpeg', 0.75));
+    return await comprimirImagenDataUrl(c.toDataURL('image/jpeg', 0.80));
   } catch (e) {
     return '';
   }
@@ -1048,24 +1428,107 @@ async function pdfBufferAImagen(arrayBuffer) {
 function parsearXMLHacienda(xmlText) {
   const parser = new DOMParser();
   const xml = parser.parseFromString(xmlText, 'text/xml');
+  const rootName = (xml.documentElement?.localName || xml.documentElement?.nodeName || '').toLowerCase();
+
+  if (rootName.includes('mensajehacienda') || rootName.includes('mensajereceptor')) {
+    return null;
+  }
+
   const getTag = (parent, name) => {
     if (!parent) return '';
-    const el = parent.getElementsByTagName(name)[0] || parent.getElementsByTagNameNS('*', name)[0];
-    return el ? el.textContent.trim() : '';
+    const target = name.toLowerCase();
+    const all = parent.getElementsByTagName('*');
+    for (let i = 0; i < all.length; i++) {
+      const local = (all[i].localName || all[i].nodeName || '').toLowerCase();
+      if (local === target && all[i].textContent.trim()) {
+        return all[i].textContent.trim();
+      }
+    }
+    return '';
   };
-  const emisor = xml.getElementsByTagName('Emisor')[0] || xml.getElementsByTagNameNS('*', 'Emisor')[0];
-  const resumen = xml.getElementsByTagName('ResumenFactura')[0] || xml.getElementsByTagNameNS('*', 'ResumenFactura')[0];
-  const codigoMoneda = resumen ? resumen.getElementsByTagName('CodigoTipoMoneda')[0] : null;
 
-  const consecutivo = getTag(xml, 'NumeroConsecutivo') || getTag(xml, 'Clave').slice(21, 41);
+  const findNode = (parent, name) => {
+    if (!parent) return null;
+    const target = name.toLowerCase();
+    const all = parent.getElementsByTagName('*');
+    for (let i = 0; i < all.length; i++) {
+      const local = (all[i].localName || all[i].nodeName || '').toLowerCase();
+      if (local === target) return all[i];
+    }
+    return null;
+  };
+
+  const emisor = findNode(xml, 'Emisor');
+  const resumen = findNode(xml, 'ResumenFactura');
+  if (!emisor && !resumen) return null;
+
+  const codigoMoneda = findNode(resumen, 'CodigoTipoMoneda');
+  const clave = getTag(xml, 'Clave');
+  const consecutivo = getTag(xml, 'NumeroConsecutivo') || (clave.length >= 41 ? clave.slice(21, 41) : '');
   const fechaRaw = getTag(xml, 'FechaEmision');
   const fecha = fechaRaw ? fechaRaw.slice(0, 10) : new Date().toISOString().slice(0, 10);
-  const proveedor = getTag(emisor, 'NombreComercial') || getTag(emisor, 'Nombre') || 'Proveedor XML';
-  const cedula = getTag(emisor, 'Numero');
+
+  const nombreComercial = getTag(emisor, 'NombreComercial');
+  const nombreLegal = getTag(emisor, 'Nombre');
+  const proveedor = nombreComercial || nombreLegal || 'Proveedor XML';
+
+  const identNode = findNode(emisor, 'Identificacion');
+  const cedula = getTag(identNode || emisor, 'Numero');
   const moneda = getTag(codigoMoneda, 'CodigoMoneda') || 'CRC';
   const total = parseFloat(getTag(resumen, 'TotalComprobante')) || 0;
+  const detalleLinea = getTag(findNode(xml, 'LineaDetalle'), 'Detalle');
 
-  return { fecha, proveedor, cedula, consecutivo, moneda, total };
+  return { fecha, proveedor, cedula, consecutivo, moneda, total, detalleLinea };
+}
+
+function extraerMontoInteligenteOCR(texto) {
+  const lineas = texto.split(/\r?\n/);
+  let candidatoTotal = 0;
+  let maxGeneral = 0;
+
+  const parsearNumero = (str) => {
+    let clean = str.replace(/[^\d.,]/g, '');
+    if (!clean) return NaN;
+    if (/,\d{2}$/.test(clean) && clean.includes('.')) {
+      clean = clean.replace(/\./g, '').replace(',', '.');
+    } else if (/,\d{2}$/.test(clean) && !clean.includes('.')) {
+      clean = clean.replace(',', '.');
+    } else {
+      clean = clean.replace(/,/g, '');
+    }
+    const val = parseFloat(clean);
+    return (!isNaN(val) && val > 50 && val < 5000000) ? val : NaN;
+  };
+
+  for (const linea of lineas) {
+    const matches = linea.match(/\d[\d.,]{1,}/g) || [];
+    const esLineaTotal = /total|pagar|monto|neto|colones|₡|crc/i.test(linea) && !/sub\s*total|iva|impuesto|vuelto|cambio/i.test(linea);
+    for (const m of matches) {
+      const n = parsearNumero(m);
+      if (isNaN(n)) continue;
+      if (n > maxGeneral) maxGeneral = n;
+      if (esLineaTotal && n > candidatoTotal) candidatoTotal = n;
+    }
+  }
+  return candidatoTotal || maxGeneral || 0;
+}
+
+async function ejecutarOCRConCajas(dataUrl) {
+  const prep = await prepararImagenParaOCR(dataUrl);
+  const res = await Tesseract.recognize(prep.ocrDataUrl, 'spa');
+  const words = (res.data.words || []).map(w => ({
+    text: w.text,
+    x0: Math.round(w.bbox.x0 / prep.scale),
+    y0: Math.round(w.bbox.y0 / prep.scale),
+    x1: Math.round(w.bbox.x1 / prep.scale),
+    y1: Math.round(w.bbox.y1 / prep.scale)
+  }));
+  return {
+    text: res.data.text || '',
+    words,
+    origW: prep.origW,
+    origH: prep.origH
+  };
 }
 
 async function procesarArchivosSubidos(fileList) {
@@ -1085,11 +1548,10 @@ async function procesarArchivosSubidos(fileList) {
       for (const [entryName, entry] of Object.entries(zip.files)) {
         if (entry.dir) continue;
         const lower = entryName.toLowerCase();
-        if (lower.endsWith('.xml') && !lower.includes('mensaje') && !lower.includes('acuse')) {
+        if (lower.endsWith('.xml') && !xmlData) {
           const txt = await entry.async('string');
-          if (txt.includes('NumeroConsecutivo') || txt.includes('Emisor')) {
-            xmlData = parsearXMLHacienda(txt);
-          }
+          const parsed = parsearXMLHacienda(txt);
+          if (parsed) xmlData = parsed;
         } else if (lower.endsWith('.pdf') && !pdfImg) {
           const buf = await entry.async('arraybuffer');
           pdfImg = await pdfBufferAImagen(buf);
@@ -1103,28 +1565,34 @@ async function procesarArchivosSubidos(fileList) {
           proveedor: xmlData.proveedor,
           cedula: xmlData.cedula,
           numero: xmlData.consecutivo,
-          categoria: inferirCategoria(xmlData.proveedor),
+          categoria: inferirCategoria(xmlData.proveedor + ' ' + (xmlData.detalleLinea || '')),
+          descripcion: xmlData.detalleLinea ? xmlData.detalleLinea.slice(0, 60) : '',
           metodoPago: 'Tarjeta Corporativa',
           moneda: xmlData.moneda === 'USD' ? 'USD' : 'CRC',
           montoOriginal: xmlData.total,
           imagen: pdfImg
         });
+      } else {
+        toast(`⚠️ No se encontró XML de factura válido dentro de ${file.name}`);
       }
     } else if (name.endsWith('.xml')) {
       const txt = await file.text();
       const xmlData = parsearXMLHacienda(txt);
-      doc.facturas.push({
-        _fid: 'fac_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-        fecha: xmlData.fecha,
-        proveedor: xmlData.proveedor,
-        cedula: xmlData.cedula,
-        numero: xmlData.consecutivo,
-        categoria: inferirCategoria(xmlData.proveedor),
-        metodoPago: 'Tarjeta Corporativa',
-        moneda: xmlData.moneda === 'USD' ? 'USD' : 'CRC',
-        montoOriginal: xmlData.total,
-        imagen: ''
-      });
+      if (xmlData) {
+        doc.facturas.push({
+          _fid: 'fac_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          fecha: xmlData.fecha,
+          proveedor: xmlData.proveedor,
+          cedula: xmlData.cedula,
+          numero: xmlData.consecutivo,
+          categoria: inferirCategoria(xmlData.proveedor + ' ' + (xmlData.detalleLinea || '')),
+          descripcion: xmlData.detalleLinea ? xmlData.detalleLinea.slice(0, 60) : '',
+          metodoPago: 'Tarjeta Corporativa',
+          moneda: xmlData.moneda === 'USD' ? 'USD' : 'CRC',
+          montoOriginal: xmlData.total,
+          imagen: ''
+        });
+      }
     } else if (name.endsWith('.pdf')) {
       const buf = await file.arrayBuffer();
       const img = await pdfBufferAImagen(buf);
@@ -1134,7 +1602,8 @@ async function procesarArchivosSubidos(fileList) {
         proveedor: file.name.replace(/\.pdf$/i, ''),
         cedula: '',
         numero: '',
-        categoria: 'Otros',
+        categoria: 'Otros autorizados',
+        descripcion: '',
         metodoPago: 'Tarjeta Corporativa',
         moneda: 'CRC',
         montoOriginal: 0,
@@ -1148,25 +1617,33 @@ async function procesarArchivosSubidos(fileList) {
       });
       const compressed = await comprimirImagenDataUrl(rawUrl);
       let montoOcr = 0;
+      let proveedorOcr = 'Tiquete Fotografía';
+      let cedulaOcr = '';
+      let lensCache = null;
+
       try {
-        const resOcr = await Tesseract.recognize(compressed, 'spa');
-        const nums = (resOcr.data.text.match(/\d[\d.,]{2,}/g) || [])
-          .map(n => parseFloat(n.replace(/,/g, '')))
-          .filter(n => !isNaN(n) && n < 5000000);
-        if (nums.length) montoOcr = Math.max(...nums);
+        const ocr = await ejecutarOCRConCajas(compressed);
+        lensCache = ocr;
+        montoOcr = extraerMontoInteligenteOCR(ocr.text);
+        const cedMatch = ocr.text.match(/3[-\s]?10[12][-\s]?\d{6}/);
+        if (cedMatch) cedulaOcr = cedMatch[0].replace(/\s+/g, '');
+        const primeraLinea = ocr.text.split(/\r?\n/).map(l => l.trim()).find(l => l.length >= 4 && /[A-Za-zÁÉÍÓÚÑ]{3,}/.test(l));
+        if (primeraLinea) proveedorOcr = primeraLinea.slice(0, 42);
       } catch (e) {}
 
       doc.facturas.push({
         _fid: 'fac_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
         fecha: new Date().toISOString().slice(0, 10),
-        proveedor: 'Tiquete Fotografía',
-        cedula: '',
+        proveedor: proveedorOcr,
+        cedula: cedulaOcr,
         numero: '',
-        categoria: 'Alimentación',
-        metodoPago: 'Efectivo / Personal',
+        categoria: inferirCategoria(proveedorOcr),
+        descripcion: '',
+        metodoPago: 'Adelanto',
         moneda: 'CRC',
         montoOriginal: montoOcr,
-        imagen: compressed
+        imagen: compressed,
+        _lensWords: lensCache
       });
     }
   }
@@ -1179,15 +1656,16 @@ async function procesarArchivosSubidos(fileList) {
 
 function inferirCategoria(nombre) {
   const n = (nombre || '').toLowerCase();
-  if (/gasolin|servi|delta|uno|total|combustible|estacion/.test(n)) return 'Combustible';
   if (/hotel|cabina|resort|lodge|hosped/.test(n)) return 'Hospedaje';
-  if (/soda|restaur|cafe|panad|mcdonald|subway|pizza|comida|grill/.test(n)) return 'Alimentación';
-  if (/peaje|ruta|parqueo|uber|taxi/.test(n)) return 'Peajes / Parqueo';
-  return 'Otros';
+  if (/soda|restaur|cafe|panad|mcdonald|subway|pizza|comida|grill|desayun|almuerz|cena/.test(n)) return 'Alimentación';
+  if (/gasolin|servi|delta|uno|total|combustible|estacion|carga|vehic|uber|taxi/.test(n)) return 'Combustible / Transporte';
+  if (/peaje|ruta|parqueo/.test(n)) return 'Parqueos y peajes';
+  if (/librer|material|ferret/.test(n)) return 'Materiales de la actividad';
+  return 'Otros autorizados';
 }
 
 // ============================================================================
-// 8. TABLA DE FACTURAS, VISTA PREVIA DE IMAGEN Y CÁLCULOS (ETAPA 3)
+// 8. TABLA DE FACTURAS, VISTA PREVIA GOOGLE LENS Y CÁLCULOS (ETAPA 3)
 // ============================================================================
 function renderFacturas() {
   const doc = getDocActivo();
@@ -1196,39 +1674,41 @@ function renderFacturas() {
   const tbody = document.getElementById('tbody-facturas');
 
   tbody.innerHTML = doc.facturas.map((f, idx) => {
+    const catNorm = normalizarCategoriaFactura(f.categoria);
     const totalCrc = f.moneda === 'USD' ? (f.montoOriginal * tc) : f.montoOriginal;
     return `
       <tr>
         <td><strong>${idx + 1}</strong></td>
+        <td><input value="${f.numero || ''}" placeholder="0010000..." oninput="actualizarFactura(${idx}, 'numero', this.value)" style="width:155px;" /></td>
         <td><input type="date" value="${f.fecha || ''}" onchange="actualizarFactura(${idx}, 'fecha', this.value)" style="width:130px;" /></td>
         <td><input list="dl-proveedores" value="${f.proveedor || ''}" oninput="actualizarFactura(${idx}, 'proveedor', this.value)" style="min-width:160px;" /></td>
-        <td><input value="${f.cedula || ''}" oninput="actualizarFactura(${idx}, 'cedula', this.value)" style="width:115px;" /></td>
-        <td><input value="${f.numero || ''}" oninput="actualizarFactura(${idx}, 'numero', this.value)" style="width:140px;" /></td>
+        <td><input value="${f.cedula || ''}" placeholder="3-101-..." oninput="actualizarFactura(${idx}, 'cedula', this.value)" style="width:120px;" /></td>
         <td>
-          <select onchange="actualizarFactura(${idx}, 'categoria', this.value)" style="width:145px;">
-            ${CATEGORIAS.map(c => `<option value="${c}" ${c === f.categoria ? 'selected' : ''}>${c}</option>`).join('')}
+          <select onchange="actualizarFactura(${idx}, 'categoria', this.value)" style="width:175px;">
+            ${CATEGORIAS_LIQUIDACION.map(c => `<option value="${c}" ${c === catNorm ? 'selected' : ''}>${c}</option>`).join('')}
           </select>
         </td>
+        <td><input value="${f.descripcion || ''}" placeholder="Ej. Almuerzo día 1" oninput="actualizarFactura(${idx}, 'descripcion', this.value)" style="min-width:150px;" /></td>
         <td>
           <select onchange="actualizarFactura(${idx}, 'metodoPago', this.value)" style="width:155px;">
-            <option ${f.metodoPago === 'Tarjeta Corporativa' ? 'selected' : ''}>Tarjeta Corporativa</option>
-            <option ${f.metodoPago === 'Efectivo / Personal' ? 'selected' : ''}>Efectivo / Personal</option>
+            <option value="Tarjeta Corporativa" ${f.metodoPago === 'Tarjeta Corporativa' ? 'selected' : ''}>Tarjeta Corporativa</option>
+            <option value="Adelanto" ${(f.metodoPago === 'Adelanto' || f.metodoPago === 'Efectivo / Personal') ? 'selected' : ''}>Adelanto / Efectivo</option>
           </select>
         </td>
         <td>
-          <select onchange="actualizarFactura(${idx}, 'moneda', this.value)" style="width:78px;">
+          <select onchange="actualizarFactura(${idx}, 'moneda', this.value)" style="width:76px;">
             <option value="CRC" ${f.moneda === 'CRC' ? 'selected' : ''}>CRC ₡</option>
             <option value="USD" ${f.moneda === 'USD' ? 'selected' : ''}>USD $</option>
           </select>
         </td>
-        <td><input type="number" step="0.01" value="${f.montoOriginal || 0}" oninput="actualizarFactura(${idx}, 'montoOriginal', parseFloat(this.value)||0)" style="width:110px;" /></td>
+        <td><input type="number" step="0.01" value="${f.montoOriginal || 0}" oninput="actualizarFactura(${idx}, 'montoOriginal', parseFloat(this.value)||0)" style="width:105px;" /></td>
         <td style="font-weight:700; white-space:nowrap;">₡${Math.round(totalCrc).toLocaleString('es-CR')}</td>
         <td style="white-space:nowrap;">
           ${f.imagen
             ? `<div style="display:flex; align-items:center; gap:6px;">
-                <img src="${f.imagen}" alt="Comprobante" onclick="verImagenFactura(${idx})" title="Clic para ampliar"
-                     style="width:42px; height:42px; object-fit:cover; border-radius:6px; border:1px solid #94a3b8; cursor:pointer;" />
-                <button class="btn-sm btn-outline" style="padding:4px 7px;" onclick="verImagenFactura(${idx})" title="Ver imagen">👁️</button>
+                <img src="${f.imagen}" alt="Comprobante" onclick="verImagenFactura(${idx})" title="Clic para ampliar y seleccionar texto"
+                     style="width:40px; height:40px; object-fit:cover; border-radius:6px; border:1px solid #94a3b8; cursor:pointer;" />
+                <button class="btn-sm btn-outline" style="padding:4px 7px;" onclick="verImagenFactura(${idx})" title="Ver imagen y copiar texto">🔍</button>
                 <label class="btn-sm btn-outline" style="cursor:pointer; padding:4px 7px;" title="Cambiar imagen">🔄<input type="file" accept="image/*" class="hidden" onchange="adjuntarImagenFila(${idx}, this.files[0])" /></label>
                </div>`
             : `<label class="btn-sm btn-outline" style="cursor:pointer; padding:5px 9px;">📎 + Img<input type="file" accept="image/*" class="hidden" onchange="adjuntarImagenFila(${idx}, this.files[0])" /></label>`
@@ -1243,19 +1723,95 @@ function renderFacturas() {
   }).join('');
 }
 
-function verImagenFactura(idx) {
+let activeLensIdx = null;
+
+function renderizarCapaLens(ocrData) {
+  const layer = document.getElementById('lens-text-layer');
+  layer.innerHTML = '';
+  if (!ocrData || !ocrData.words || !ocrData.origW || !ocrData.origH) return;
+
+  ocrData.words.forEach(w => {
+    if (!w.text || !w.text.trim()) return;
+    const span = document.createElement('span');
+    span.className = 'lens-word';
+    span.textContent = w.text + ' ';
+    span.style.left = ((w.x0 / ocrData.origW) * 100) + '%';
+    span.style.top = ((w.y0 / ocrData.origH) * 100) + '%';
+    span.style.width = (((w.x1 - w.x0) / ocrData.origW) * 100) + '%';
+    span.style.height = (((w.y1 - w.y0) / ocrData.origH) * 100) + '%';
+    span.style.fontSize = Math.max(10, Math.round((w.y1 - w.y0) * 0.72)) + 'px';
+    layer.appendChild(span);
+  });
+
+  document.getElementById('btn-lens-copy').classList.remove('hidden');
+  document.getElementById('lens-status-bar').textContent =
+    '✅ Texto detectado: arrastra el cursor o el dedo sobre las palabras en la imagen para seleccionarlas y copiarlas.';
+}
+
+async function verImagenFactura(idx) {
   const doc = getDocActivo();
   const f = doc?.facturas?.[idx];
   if (!f || !f.imagen) return;
+  activeLensIdx = idx;
+
   document.getElementById('img-preview-title').textContent =
     `Comprobante #${idx + 1} — ${f.proveedor || 'Sin proveedor'} (${f.fecha || ''})`;
-  document.getElementById('img-preview-el').src = f.imagen;
+  const imgEl = document.getElementById('img-preview-el');
+  const layer = document.getElementById('lens-text-layer');
+  layer.innerHTML = '';
+  document.getElementById('btn-lens-copy').classList.add('hidden');
+
+  imgEl.src = f.imagen;
   document.getElementById('img-preview-modal').classList.remove('hidden');
+
+  if (f._lensWords) {
+    renderizarCapaLens(f._lensWords);
+  } else {
+    document.getElementById('lens-status-bar').textContent =
+      '💡 Pulsa "🔍 Detectar texto seleccionable" para habilitar la selección de texto sobre esta imagen.';
+  }
+}
+
+async function activarLensEnModal() {
+  const doc = getDocActivo();
+  const f = doc?.facturas?.[activeLensIdx];
+  if (!f || !f.imagen) return;
+
+  const btn = document.getElementById('btn-lens-scan');
+  const bar = document.getElementById('lens-status-bar');
+  btn.disabled = true;
+  bar.textContent = '⏳ Analizando imagen y creando capa de texto seleccionable...';
+
+  try {
+    const ocr = await ejecutarOCRConCajas(f.imagen);
+    f._lensWords = ocr;
+    renderizarCapaLens(ocr);
+  } catch (e) {
+    bar.textContent = '⚠️ No se pudo extraer texto de esta imagen.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function copiarTextoSeleccionadoLens() {
+  const sel = window.getSelection ? window.getSelection().toString().trim() : '';
+  if (!sel) {
+    toast('Primero selecciona con el mouse o dedo el texto sobre la factura.');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(sel);
+    toast(`Copiado: "${sel}"`);
+  } catch (e) {
+    toast('Usa Ctrl+C / Copiar para guardar tu selección.');
+  }
 }
 
 function cerrarVistaPrevia() {
   document.getElementById('img-preview-modal').classList.add('hidden');
   document.getElementById('img-preview-el').src = '';
+  document.getElementById('lens-text-layer').innerHTML = '';
+  activeLensIdx = null;
 }
 
 function actualizarFactura(idx, campo, valor) {
@@ -1275,6 +1831,7 @@ function agregarFacturaVacia() {
     cedula: '',
     numero: '',
     categoria: 'Alimentación',
+    descripcion: '',
     metodoPago: 'Tarjeta Corporativa',
     moneda: 'CRC',
     montoOriginal: 0,
@@ -1316,6 +1873,7 @@ async function adjuntarImagenFila(idx, file) {
   const r = new FileReader();
   r.onload = async () => {
     doc.facturas[idx].imagen = await comprimirImagenDataUrl(r.result);
+    delete doc.facturas[idx]._lensWords;
     renderFacturas();
     programarAutoguardado();
   };
@@ -1327,147 +1885,472 @@ function recalcularTodo() {
   if (!doc) return;
   const tc = doc.tipoCambio || 515;
   const totalPresup = doc.tipo === 'gira'
-    ? doc.presupuesto.reduce((s, p) => s + (parseFloat(p.monto) || 0), 0)
+    ? doc.presupuesto.reduce((s, p) => s + (parseFloat(p.montoCrc) || 0) + ((parseFloat(p.montoUsd) || 0) * tc), 0)
     : (parseFloat(doc.adelanto) || 0);
 
-  let totalLiq = 0, totalTarjeta = 0, totalEfectivo = 0;
+  let totalLiq = 0, totalTarjeta = 0, totalAdelantoGastado = 0;
   doc.facturas.forEach(f => {
     const crc = f.moneda === 'USD' ? (f.montoOriginal * tc) : (f.montoOriginal || 0);
     totalLiq += crc;
     if (f.metodoPago === 'Tarjeta Corporativa') totalTarjeta += crc;
-    else totalEfectivo += crc;
+    else totalAdelantoGastado += crc;
   });
 
   const adelanto = parseFloat(doc.adelanto) || 0;
-  const saldoReembolso = totalEfectivo - adelanto;
+  const saldoAdelanto = adelanto - totalAdelantoGastado;
 
   document.getElementById('kpi-presupuesto').textContent = '₡' + Math.round(totalPresup).toLocaleString('es-CR');
   document.getElementById('kpi-liquidado').textContent = '₡' + Math.round(totalLiq).toLocaleString('es-CR');
   document.getElementById('kpi-tarjeta').textContent = '₡' + Math.round(totalTarjeta).toLocaleString('es-CR');
-  document.getElementById('kpi-diff-label').textContent = saldoReembolso >= 0 ? 'A Reembolsar al Colaborador' : 'A Devolver a Tecnikids';
-  document.getElementById('kpi-diferencia').textContent = '₡' + Math.round(Math.abs(saldoReembolso)).toLocaleString('es-CR');
+  document.getElementById('kpi-diff-label').textContent = saldoAdelanto >= 0 ? 'Saldo a devolver a Tecnikids' : 'A reintegrar al colaborador';
+  document.getElementById('kpi-diferencia').textContent = '₡' + Math.round(Math.abs(saldoAdelanto)).toLocaleString('es-CR');
 }
 
 // ============================================================================
-// 9. FIRMA DIGITAL EN CANVAS (ETAPA 4)
+// 9. FIRMA DIGITAL EN CANVAS (DOCUMENTO Y PERFIL)
 // ============================================================================
-const sigCanvas = document.getElementById('sig-canvas');
-const sigCtx = sigCanvas.getContext('2d');
-sigCtx.lineWidth = 2.4;
-sigCtx.lineCap = 'round';
-sigCtx.strokeStyle = '#0f172a';
-let dibujando = false;
+function inicializarCanvasFirma(canvasId, onEndCallback) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#0f172a';
+  let dibujando = false;
 
-function getPos(e) {
-  const rect = sigCanvas.getBoundingClientRect();
-  const touch = e.touches ? e.touches[0] : e;
-  return {
-    x: (touch.clientX - rect.left) * (sigCanvas.width / rect.width),
-    y: (touch.clientY - rect.top) * (sigCanvas.height / rect.height)
+  const getPos = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    return {
+      x: (touch.clientX - rect.left) * (canvas.width / rect.width),
+      y: (touch.clientY - rect.top) * (canvas.height / rect.height)
+    };
   };
+
+  canvas.addEventListener('mousedown', e => { dibujando = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); });
+  canvas.addEventListener('mousemove', e => { if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+  window.addEventListener('mouseup', () => { if (dibujando) { dibujando = false; if (onEndCallback) onEndCallback(); } });
+
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); dibujando = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }, { passive: false });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); if (!dibujando) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }, { passive: false });
+  canvas.addEventListener('touchend', () => { if (dibujando) { dibujando = false; if (onEndCallback) onEndCallback(); } });
 }
 
-sigCanvas.addEventListener('mousedown', e => { dibujando = true; const p = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y); });
-sigCanvas.addEventListener('mousemove', e => { if (!dibujando) return; const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); });
-window.addEventListener('mouseup', () => { if (dibujando) { dibujando = false; guardarFirma(); } });
-
-sigCanvas.addEventListener('touchstart', e => { e.preventDefault(); dibujando = true; const p = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y); }, { passive: false });
-sigCanvas.addEventListener('touchmove', e => { e.preventDefault(); if (!dibujando) return; const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); }, { passive: false });
-sigCanvas.addEventListener('touchend', () => { if (dibujando) { dibujando = false; guardarFirma(); } });
+inicializarCanvasFirma('sig-canvas', guardarFirma);
+inicializarCanvasFirma('profile-sig-canvas', null);
 
 function guardarFirma() {
   const doc = getDocActivo();
   if (!doc) return;
+  const sigCanvas = document.getElementById('sig-canvas');
   doc.firmaDataUrl = sigCanvas.toDataURL('image/png');
   programarAutoguardado();
 }
 
 function limpiarFirma() {
-  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+  const sigCanvas = document.getElementById('sig-canvas');
+  sigCanvas.getContext('2d').clearRect(0, 0, sigCanvas.width, sigCanvas.height);
   const doc = getDocActivo();
   if (doc) doc.firmaDataUrl = '';
   programarAutoguardado();
 }
 
-function cargarFirmaEnCanvas(dataUrl) {
-  sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+function cargarFirmaEnCanvasId(canvasId, dataUrl) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
   if (!dataUrl) return;
   const img = new Image();
-  img.onload = () => sigCtx.drawImage(img, 0, 0);
+  img.onload = () => ctx.drawImage(img, 0, 0);
   img.src = dataUrl;
 }
 
+function cargarFirmaEnCanvas(dataUrl) {
+  cargarFirmaEnCanvasId('sig-canvas', dataUrl);
+}
+
 // ============================================================================
-// 10. EXPORTACIÓN A EXCEL (.XLSX) CON FÓRMULAS, FIRMA E IMÁGENES DE FACTURAS
+// 10. EXPORTACIÓN A EXCEL OFICIAL TECNIKIDS SRL
+//     (PESTAÑAS: 'Presupuesto', 'Liquidación' Y 'Factura N')
 // ============================================================================
+function formatearFechaSlash(isoDate) {
+  if (!isoDate || !isoDate.includes('-')) return isoDate || '';
+  const [y, m, d] = isoDate.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function parseDateObj(isoDate) {
+  if (!isoDate || !isoDate.includes('-')) return new Date();
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 async function exportarExcelOficial() {
   const doc = getDocActivo();
   if (!doc) return;
-  const wb = new ExcelJS.Workbook();
-  const ws = wb.addWorksheet('Liquidación');
 
-  ws.columns = [
-    { width: 6 }, { width: 14 }, { width: 28 }, { width: 16 },
-    { width: 22 }, { width: 20 }, { width: 20 }, { width: 16 }
+  const wb = new ExcelJS.Workbook();
+  const NAVY = 'FF1F497D';
+  const YELLOW = 'FFFFE870';
+  const GRAY_LABEL = 'FFF3F3F3';
+  const IVORY = 'FFFFFFF0';
+  const WHITE = 'FFFFFFFF';
+  const BLUE_INPUT = 'FF0000FF';
+
+  const thinBorder = {
+    top: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+    left: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+    bottom: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+    right: { style: 'thin', color: { argb: 'FFD9D9D9' } }
+  };
+
+  const estiloBannerAzul = (cell, text) => {
+    cell.value = text;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+    cell.font = { name: 'Arial', size: 14, bold: true, color: { argb: WHITE } };
+    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  };
+
+  const estiloSubBannerAmarillo = (cell, text, size = 10) => {
+    cell.value = text;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: YELLOW } };
+    cell.font = { name: 'Arial', size, bold: true, color: { argb: NAVY } };
+    cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  };
+
+  const estiloEtiquetaGris = (cell, text, bold = true) => {
+    cell.value = text;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GRAY_LABEL } };
+    cell.font = { name: 'Arial', size: 10, bold, color: { argb: NAVY } };
+    cell.border = thinBorder;
+    cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+  };
+
+  const estiloValor = (cell, val, isBlue = true, numFmt = null) => {
+    cell.value = val;
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: val !== null && val !== '' ? WHITE : IVORY } };
+    cell.font = { name: 'Arial', size: 10, bold: false, color: { argb: isBlue ? BLUE_INPUT : NAVY } };
+    cell.border = thinBorder;
+    cell.alignment = { vertical: 'middle', horizontal: typeof val === 'number' ? 'right' : 'left', wrapText: true };
+    if (numFmt) cell.numFmt = numFmt;
+  };
+
+  const esGira = doc.tipo === 'gira';
+
+  if (esGira) {
+    const wsP = wb.addWorksheet('Presupuesto');
+    wsP.columns = [
+      { width: 3 }, { width: 26 }, { width: 30 }, { width: 18 }, { width: 22 }, { width: 38 }
+    ];
+
+    wsP.mergeCells('B2:F2');
+    wsP.getRow(2).height = 24;
+    estiloBannerAzul(wsP.getCell('B2'), 'PRESUPUESTO DE GIRA — TECNIKIDS SRL');
+
+    wsP.mergeCells('B3:F3');
+    wsP.getRow(3).height = 19;
+    estiloSubBannerAmarillo(wsP.getCell('B3'), 'Manual de Viáticos, Giras y Tarjetas Corporativas — Parte IV', 10);
+
+    const metaGira = [
+      [5, 'Gira N.° / Nombre', doc.giraNombre || `${doc.destino || 'Gira'}`],
+      [6, 'Encargado', doc.colaborador || ''],
+      [7, 'Tipo de gira', doc.tipoGira || 'Nacional Recurrente'],
+      [8, 'Destino', doc.destino || ''],
+      [9, 'Fechas oficiales (inicio – fin)', `${formatearFechaSlash(doc.fechaInicio)} - ${formatearFechaSlash(doc.fechaFin)}`],
+      [10, 'Proyecto / Iniciativa', doc.proyecto || ''],
+      [11, 'Fecha de solicitud', parseDateObj(doc.fechaSolicitud)],
+      [12, 'Aprobada por (Director) y fecha', doc.aprobadaPor || '']
+    ];
+
+    metaGira.forEach(([r, label, val]) => {
+      wsP.mergeCells(`C${r}:F${r}`);
+      wsP.getRow(r).height = 19;
+      estiloEtiquetaGris(wsP.getCell(`B${r}`), label, true);
+      const isDate = val instanceof Date;
+      for (let col = 3; col <= 6; col++) {
+        estiloValor(wsP.getCell(r, col), col === 3 ? val : null, true, isDate ? 'dd/mm/yyyy' : null);
+      }
+    });
+
+    wsP.mergeCells('B14:F14');
+    wsP.getRow(14).height = 20;
+    estiloSubBannerAmarillo(wsP.getCell('B14'), 'PRESUPUESTO POR CATEGORÍA', 11);
+
+    wsP.getRow(15).height = 20;
+    ['Categoría', 'Detalle', 'Monto CRC', 'Monto USD (internacional)', 'Notas'].forEach((h, i) => {
+      const c = wsP.getCell(15, i + 2);
+      estiloEtiquetaGris(c, h, true);
+      if (i >= 2 && i <= 3) c.alignment = { vertical: 'middle', horizontal: 'right' };
+    });
+
+    const presRows = doc.presupuesto.slice(0, 6);
+    presRows.forEach((p, idx) => {
+      const r = 16 + idx;
+      wsP.getRow(r).height = 19;
+      estiloEtiquetaGris(wsP.getCell(r, 2), p.labelPresupuesto, false);
+      estiloValor(wsP.getCell(r, 3), p.detalle || null, true);
+      estiloValor(wsP.getCell(r, 4), p.montoCrc ? Number(p.montoCrc) : null, true, '₡#,##0.00');
+      estiloValor(wsP.getCell(r, 5), p.montoUsd ? Number(p.montoUsd) : null, true, '$#,##0.00');
+      estiloValor(wsP.getCell(r, 6), p.notas || null, true);
+    });
+
+    wsP.getRow(22).height = 20;
+    estiloEtiquetaGris(wsP.getCell('B22'), 'PRESUPUESTO TOTAL', true);
+    estiloEtiquetaGris(wsP.getCell('C22'), '', true);
+    const totCrc = wsP.getCell('D22');
+    estiloEtiquetaGris(totCrc, { formula: 'SUM(D16:D21)' }, true);
+    totCrc.numFmt = '₡#,##0.00';
+    totCrc.alignment = { vertical: 'middle', horizontal: 'right' };
+
+    const totUsd = wsP.getCell('E22');
+    estiloEtiquetaGris(totUsd, { formula: 'SUM(E16:E21)' }, true);
+    totUsd.numFmt = '$#,##0.00';
+    totUsd.alignment = { vertical: 'middle', horizontal: 'right' };
+    estiloEtiquetaGris(wsP.getCell('F22'), '', true);
+
+    wsP.mergeCells('B24:F24');
+    wsP.getRow(24).height = 20;
+    estiloSubBannerAmarillo(wsP.getCell('B24'), 'ADELANTO (opcional — solicitar con 3 días hábiles de anticipación)', 10);
+
+    wsP.getRow(25).height = 20;
+    wsP.mergeCells('E25:F25');
+    estiloEtiquetaGris(wsP.getCell('B25'), 'Adelanto solicitado (₡)', true);
+    estiloValor(wsP.getCell('C25'), Number(doc.adelanto) || 0, true, '₡#,##0.00');
+    estiloEtiquetaGris(wsP.getCell('D25'), 'Fecha requerida', true);
+    estiloValor(wsP.getCell('E25'), parseDateObj(doc.fechaAdelanto), true, 'dd/mm/yyyy');
+    wsP.getCell('F25').border = thinBorder;
+
+    wsP.mergeCells('B27:F29');
+    const cReglas = wsP.getCell('B27');
+    cReglas.value = 'Reglas: el presupuesto es independiente de las bolsas mensuales y no podrá cargarse a ellas cuando se agote. Giras internacionales se presupuestan en USD (sección 14.1). La solicitud de la gira se notifica a Contabilidad mediante el formulario de ClickUp. Celdas amarillas/marfil = para completar; azul = ejemplo a sustituir.';
+    cReglas.font = { name: 'Arial', size: 9, color: { argb: NAVY } };
+    cReglas.alignment = { vertical: 'top', horizontal: 'left', wrapText: true };
+  }
+
+  const wsL = wb.addWorksheet('Liquidación');
+  wsL.columns = [
+    { width: 3 }, { width: 24 }, { width: 13 }, { width: 28 }, { width: 26 },
+    { width: 24 }, { width: 26 }, { width: 16 }, { width: 20 }
   ];
 
-  ws.mergeCells('A1:H1');
-  ws.getCell('A1').value = 'TECNIKIDS SRL (Céd. 3-102-776732) — LIQUIDACIÓN DE GIRAS Y VIÁTICOS';
-  ws.getCell('A1').font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
-  ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
-  ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
-  ws.getRow(1).height = 28;
+  wsL.mergeCells('B2:I2');
+  wsL.getRow(2).height = 24;
+  estiloBannerAzul(wsL.getCell('B2'), esGira ? 'LIQUIDACIÓN DE GIRA — TECNIKIDS SRL' : 'LIQUIDACIÓN MENSUAL DE VIÁTICOS — TECNIKIDS SRL');
 
-  ws.addRow(['Colaborador:', doc.colaborador, '', 'Proyecto:', doc.proyecto, '', 'Tipo Cambio:', doc.tipoCambio]);
-  ws.addRow(['Destino / Mes:', doc.destino, '', 'Periodo:', `${doc.fechaInicio} al ${doc.fechaFin}`, '', 'Adelanto (₡):', doc.adelanto]);
-  ws.addRow([]);
+  wsL.mergeCells('B3:I3');
+  wsL.getRow(3).height = 19;
+  estiloSubBannerAmarillo(wsL.getCell('B3'), esGira ? 'Presentar dentro de los 3 días hábiles posteriores al regreso' : 'Manual de Viáticos, Giras y Tarjetas Corporativas — Liquidación Mensual', 10);
 
-  const headerRow = ws.addRow(['#', 'Fecha', 'Proveedor', 'Cédula', 'Consecutivo', 'Categoría', 'Método Pago', 'Monto (₡)']);
-  headerRow.eachCell(c => {
-    c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1D4ED8' } };
+  wsL.mergeCells('C5:E5');
+  wsL.mergeCells('G5:I5');
+  wsL.getRow(5).height = 19;
+  estiloEtiquetaGris(wsL.getCell('B5'), esGira ? 'Gira N.° / Nombre' : 'Mes / Periodo', true);
+  estiloValor(wsL.getCell('C5'), esGira ? { formula: 'Presupuesto!C5' } : (doc.destino || ''), !esGira);
+  wsL.getCell('D5').border = thinBorder;
+  wsL.getCell('E5').border = thinBorder;
+
+  estiloEtiquetaGris(wsL.getCell('F5'), 'Encargado', true);
+  estiloValor(wsL.getCell('G5'), esGira ? { formula: 'Presupuesto!C6' } : (doc.colaborador || ''), !esGira);
+  wsL.getCell('H5').border = thinBorder;
+  wsL.getCell('I5').border = thinBorder;
+
+  wsL.mergeCells('C6:E6');
+  wsL.mergeCells('G6:I6');
+  wsL.getRow(6).height = 19;
+  estiloEtiquetaGris(wsL.getCell('B6'), 'Fecha de liquidación', true);
+  estiloValor(wsL.getCell('C6'), parseDateObj(doc.fechaLiquidacion), true, 'dd/mm/yyyy');
+  wsL.getCell('D6').border = thinBorder;
+  wsL.getCell('E6').border = thinBorder;
+
+  estiloEtiquetaGris(wsL.getCell('F6'), 'N.° de cuenta (si hay reintegro)', true);
+  estiloValor(wsL.getCell('G6'), doc.cuentaIban || '', true);
+  wsL.getCell('H6').border = thinBorder;
+  wsL.getCell('I6').border = thinBorder;
+
+  wsL.mergeCells('B8:I8');
+  wsL.getRow(8).height = 20;
+  estiloSubBannerAmarillo(wsL.getCell('B8'), 'DETALLE DE FACTURAS', 11);
+
+  wsL.getRow(9).height = 21;
+  const headersFac = [
+    '# Consecutivo factura', 'Fecha', 'Nombre proveedor', 'Razón social o cédula jurídica',
+    'Categoría', 'Descripción', 'Monto c/IVA', 'Tipo de pago'
+  ];
+  headersFac.forEach((h, i) => {
+    const cell = wsL.getCell(9, i + 2);
+    estiloEtiquetaGris(cell, h, true);
+    if (i === 6) cell.alignment = { vertical: 'middle', horizontal: 'right' };
   });
 
   const tc = doc.tipoCambio || 515;
-  const startRow = 6;
-  doc.facturas.forEach((f, i) => {
-    const montoCrc = f.moneda === 'USD' ? (f.montoOriginal * tc) : (f.montoOriginal || 0);
-    const r = ws.addRow([i + 1, f.fecha, f.proveedor, f.cedula, f.numero, f.categoria, f.metodoPago, Math.round(montoCrc)]);
-    r.getCell(8).numFmt = '₡#,##0';
-  });
+  const startFacRow = 10;
+  const totalSlots = Math.max(21, doc.facturas.length);
+  const endFacRow = startFacRow + totalSlots - 1;
 
-  const endRow = Math.max(startRow, startRow + doc.facturas.length - 1);
-  const totalRow = ws.addRow(['', '', '', '', '', '', 'TOTAL LIQUIDADO:', { formula: `SUM(H${startRow}:H${endRow})` }]);
-  totalRow.getCell(7).font = { bold: true };
-  totalRow.getCell(8).font = { bold: true };
-  totalRow.getCell(8).numFmt = '₡#,##0';
-
-  if (doc.firmaDataUrl && doc.firmaDataUrl.startsWith('data:image')) {
-    const sigRow = totalRow.number + 2;
-    ws.getCell(`B${sigRow}`).value = 'FIRMA DEL COLABORADOR:';
-    ws.getCell(`B${sigRow}`).font = { bold: true };
-    const imgId = wb.addImage({ base64: doc.firmaDataUrl, extension: 'png' });
-    ws.addImage(imgId, { tl: { col: 1, row: sigRow }, ext: { width: 200, height: 75 } });
+  for (let i = 0; i < totalSlots; i++) {
+    const r = startFacRow + i;
+    wsL.getRow(r).height = 19;
+    const f = doc.facturas[i];
+    if (f) {
+      const montoCrc = f.moneda === 'USD' ? (f.montoOriginal * tc) : (f.montoOriginal || 0);
+      const tipoPago = (f.metodoPago === 'Efectivo / Personal' || f.metodoPago === 'Adelanto') ? 'Adelanto' : 'Tarjeta Corporativa';
+      estiloValor(wsL.getCell(r, 2), f.numero || '', true);
+      estiloValor(wsL.getCell(r, 3), parseDateObj(f.fecha), true, 'dd/mm/yyyy');
+      estiloValor(wsL.getCell(r, 4), f.proveedor || '', true);
+      estiloValor(wsL.getCell(r, 5), f.cedula || '', true);
+      estiloValor(wsL.getCell(r, 6), normalizarCategoriaFactura(f.categoria), true);
+      estiloValor(wsL.getCell(r, 7), f.descripcion || '', true);
+      estiloValor(wsL.getCell(r, 8), Math.round(montoCrc * 100) / 100, true, '₡#,##0.00');
+      estiloValor(wsL.getCell(r, 9), tipoPago, true);
+    } else {
+      for (let col = 2; col <= 9; col++) {
+        estiloValor(wsL.getCell(r, col), null, true, col === 8 ? '₡#,##0.00' : null);
+      }
+    }
   }
 
-  // Hojas individuales con comprobantes adjuntos
+  const rowTotalReal = endFacRow + 1;
+  wsL.getRow(rowTotalReal).height = 20;
+  estiloEtiquetaGris(wsL.getCell(rowTotalReal, 7), 'TOTAL GASTO REAL', true);
+  const cellTotalReal = wsL.getCell(rowTotalReal, 8);
+  estiloEtiquetaGris(cellTotalReal, { formula: `SUM(H${startFacRow}:H${endFacRow})` }, true);
+  cellTotalReal.numFmt = '₡#,##0.00';
+  cellTotalReal.alignment = { vertical: 'middle', horizontal: 'right' };
+
+  const rowCompBanner = rowTotalReal + 2;
+  wsL.mergeCells(`B${rowCompBanner}:I${rowCompBanner}`);
+  wsL.getRow(rowCompBanner).height = 20;
+  estiloSubBannerAmarillo(wsL.getCell(`B${rowCompBanner}`), 'PRESUPUESTO VS. GASTO REAL', 11);
+
+  const rowCompHead = rowCompBanner + 1;
+  wsL.getRow(rowCompHead).height = 20;
+  ['Categoría', 'Presupuesto CRC', 'Gasto real CRC', 'Diferencia'].forEach((h, i) => {
+    const c = wsL.getCell(rowCompHead, i + 2);
+    estiloEtiquetaGris(c, h, true);
+    if (i >= 1) c.alignment = { vertical: 'middle', horizontal: 'right' };
+  });
+
+  const rowCompStart = rowCompHead + 1;
+  CATEGORIAS_LIQUIDACION.forEach((cat, idx) => {
+    const r = rowCompStart + idx;
+    const presRowRef = 16 + idx;
+    wsL.getRow(r).height = 19;
+    estiloEtiquetaGris(wsL.getCell(r, 2), cat, false);
+
+    const cPres = wsL.getCell(r, 3);
+    estiloValor(cPres, esGira ? { formula: `Presupuesto!D${presRowRef}` } : 0, false, '₡#,##0.00');
+
+    const cReal = wsL.getCell(r, 4);
+    estiloValor(cReal, { formula: `SUMIFS($H$${startFacRow}:$H$${endFacRow},$F$${startFacRow}:$F$${endFacRow},B${r})` }, false, '₡#,##0.00');
+
+    const cDiff = wsL.getCell(r, 5);
+    estiloValor(cDiff, { formula: `C${r}-D${r}` }, false, '₡#,##0.00');
+  });
+
+  const rowCompEnd = rowCompStart + CATEGORIAS_LIQUIDACION.length - 1;
+  const rowCompTotal = rowCompEnd + 1;
+  wsL.getRow(rowCompTotal).height = 20;
+  estiloEtiquetaGris(wsL.getCell(rowCompTotal, 2), 'TOTAL', true);
+
+  const cTotP = wsL.getCell(rowCompTotal, 3);
+  estiloEtiquetaGris(cTotP, { formula: `SUM(C${rowCompStart}:C${rowCompEnd})` }, true);
+  cTotP.numFmt = '₡#,##0.00';
+  cTotP.alignment = { vertical: 'middle', horizontal: 'right' };
+
+  const cTotR = wsL.getCell(rowCompTotal, 4);
+  estiloEtiquetaGris(cTotR, { formula: `SUM(D${rowCompStart}:D${rowCompEnd})` }, true);
+  cTotR.numFmt = '₡#,##0.00';
+  cTotR.alignment = { vertical: 'middle', horizontal: 'right' };
+
+  const cTotD = wsL.getCell(rowCompTotal, 5);
+  estiloEtiquetaGris(cTotD, { formula: `C${rowCompTotal}-D${rowCompTotal}` }, true);
+  cTotD.numFmt = '₡#,##0.00';
+  cTotD.alignment = { vertical: 'middle', horizontal: 'right' };
+
+  const rowAdelBanner = rowCompTotal + 2;
+  wsL.mergeCells(`B${rowAdelBanner}:I${rowAdelBanner}`);
+  wsL.getRow(rowAdelBanner).height = 20;
+  estiloSubBannerAmarillo(wsL.getCell(`B${rowAdelBanner}`), 'CIERRE DEL ADELANTO', 10);
+
+  const rowAdel = rowAdelBanner + 1;
+  wsL.getRow(rowAdel).height = 28;
+  wsL.mergeCells(`E${rowAdel}:F${rowAdel}`);
+  wsL.mergeCells(`H${rowAdel}:I${rowAdel}`);
+
+  estiloEtiquetaGris(wsL.getCell(rowAdel, 2), 'Adelanto recibido', true);
+  const cAdelRec = wsL.getCell(rowAdel, 3);
+  estiloValor(cAdelRec, esGira ? { formula: 'Presupuesto!C25' } : (Number(doc.adelanto) || 0), !esGira, '₡#,##0.00');
+
+  estiloEtiquetaGris(wsL.getCell(rowAdel, 4), 'Saldo a devolver (si positivo) / a reintegrar al colaborador (si negativo)', true);
+  const cSaldoAdel = wsL.getCell(rowAdel, 5);
+  estiloValor(cSaldoAdel, { formula: `C${rowAdel}-SUMIFS($H$${startFacRow}:$H$${endFacRow},$I$${startFacRow}:$I$${endFacRow},"Adelanto")` }, false, '₡#,##0.00');
+  wsL.getCell(rowAdel, 6).border = thinBorder;
+
+  estiloEtiquetaGris(wsL.getCell(rowAdel, 7), 'Plazo devolución', true);
+  estiloValor(wsL.getCell(rowAdel, 8), '3 días hábiles', false);
+  wsL.getCell(rowAdel, 9).border = thinBorder;
+
+  const rowDecl = rowAdel + 2;
+  wsL.mergeCells(`B${rowDecl}:I${rowDecl + 1}`);
+  wsL.getRow(rowDecl).height = 18;
+  wsL.getRow(rowDecl + 1).height = 18;
+  const cDecl = wsL.getCell(`B${rowDecl}`);
+  cDecl.value = 'Declaro que los gastos aquí detallados corresponden exclusivamente a la gira indicada y a tareas vinculadas con la operación de Tecnikids. Todas las facturas se adjuntan en las pestañas "Factura N" y cumplen los requisitos fiscales (a nombre de TECNIKIDS SRL, cédula 3-102-776732, correo tkcrfacturas@gmail.com).';
+  cDecl.font = { name: 'Arial', size: 9, color: { argb: NAVY } };
+  cDecl.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+
+  const rowFirma = rowDecl + 3;
+  wsL.getRow(rowFirma).height = 36;
+  wsL.mergeCells(`C${rowFirma}:D${rowFirma}`);
+  wsL.mergeCells(`F${rowFirma}:G${rowFirma}`);
+
+  estiloEtiquetaGris(wsL.getCell(rowFirma, 2), 'NOMBRE', true);
+  estiloValor(wsL.getCell(rowFirma, 3), doc.colaborador || '', true);
+  wsL.getCell(rowFirma, 4).border = thinBorder;
+
+  estiloEtiquetaGris(wsL.getCell(rowFirma, 5), 'FIRMA', true);
+  estiloValor(wsL.getCell(rowFirma, 6), '', true);
+  wsL.getCell(rowFirma, 7).border = thinBorder;
+
+  estiloEtiquetaGris(wsL.getCell(rowFirma, 8), 'FECHA', true);
+  estiloValor(wsL.getCell(rowFirma, 9), parseDateObj(doc.fechaLiquidacion), true, 'dd/mm/yyyy');
+
+  if (doc.firmaDataUrl && doc.firmaDataUrl.startsWith('data:image')) {
+    const imgId = wb.addImage({ base64: doc.firmaDataUrl, extension: 'png' });
+    wsL.addImage(imgId, {
+      tl: { col: 5.1, row: rowFirma - 0.9 },
+      ext: { width: 140, height: 42 }
+    });
+  }
+
   doc.facturas.forEach((f, i) => {
-    if (!f.imagen || !f.imagen.startsWith('data:image')) return;
     const fSheet = wb.addWorksheet(`Factura ${i + 1}`);
-    fSheet.getCell('A1').value = `Comprobante #${i + 1} — ${f.proveedor} (${f.fecha}) — N° ${f.numero}`;
-    fSheet.getCell('A1').font = { bold: true, size: 12 };
-    const ext = f.imagen.includes('image/png') ? 'png' : 'jpeg';
-    const imgId = wb.addImage({ base64: f.imagen, extension: ext });
-    fSheet.addImage(imgId, { tl: { col: 0, row: 2 }, ext: { width: 480, height: 640 } });
+    fSheet.columns = [{ width: 3 }, { width: 90 }];
+    const montoCrc = f.moneda === 'USD' ? (f.montoOriginal * tc) : (f.montoOriginal || 0);
+    const montoFmt = '₡' + Math.round(montoCrc).toLocaleString('es-CR') + ',00';
+
+    const titleCell = fSheet.getCell('B2');
+    titleCell.value = `Comprobante Factura ${i + 1} — ${f.proveedor || 'Proveedor'} (${f.numero || 'S/N'}) — ${montoFmt}`;
+    titleCell.font = { name: 'Arial', size: 11, bold: true, color: { argb: NAVY } };
+
+    if (f.imagen && f.imagen.startsWith('data:image')) {
+      const ext = f.imagen.includes('image/png') ? 'png' : 'jpeg';
+      const imgId = wb.addImage({ base64: f.imagen, extension: ext });
+      fSheet.addImage(imgId, { tl: { col: 1, row: 3 }, ext: { width: 480, height: 640 } });
+    }
   });
 
   const buf = await wb.xlsx.writeBuffer();
   const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `Liquidacion_Tecnikids_${(doc.destino || 'Viaticos').replace(/\s+/g, '_')}.xlsx`;
+  const nombreArchivo = esGira
+    ? `${(doc.giraNombre || 'GIRA').split('—')[0].trim()} — ${doc.colaborador || 'Colaborador'} — Presupuesto y Liquidación.xlsx`
+    : `Liquidacion_Viaticos_${(doc.destino || 'Mensual').replace(/\s+/g, '_')}.xlsx`;
+  a.download = nombreArchivo;
   a.click();
-  toast('Archivo Excel generado.');
+  toast('Excel oficial generado.');
 }
 
 renderHome();
