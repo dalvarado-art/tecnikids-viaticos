@@ -417,6 +417,19 @@
   </div>
 </div>
 
+<!-- MODAL VISTA PREVIA DE COMPROBANTE -->
+<div id="img-preview-modal" class="hidden" onclick="cerrarVistaPrevia()" style="position:fixed; inset:0; z-index:9997; background:rgba(15,23,42,0.85); display:flex; align-items:center; justify-content:center; padding:20px;">
+  <div onclick="event.stopPropagation()" style="background:#fff; border-radius:14px; max-width:720px; width:100%; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,0.4);">
+    <div style="padding:12px 16px; background:#0f172a; color:#fff; display:flex; justify-content:space-between; align-items:center;">
+      <strong id="img-preview-title" style="font-size:14px;">Vista previa del comprobante</strong>
+      <button class="btn-sm btn-danger" onclick="cerrarVistaPrevia()">✕ Cerrar</button>
+    </div>
+    <div style="padding:16px; overflow:auto; text-align:center; background:#f8fafc;">
+      <img id="img-preview-el" src="" alt="Comprobante" style="max-width:100%; max-height:72vh; border-radius:8px; border:1px solid #cbd5e1;" />
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 
 <script>
@@ -519,7 +532,7 @@ function cerrarSesion() {
 }
 
 // ============================================================================
-// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v4)
+// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v5)
 // ============================================================================
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -566,7 +579,7 @@ async function instalarPWA() {
 
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       const swCode = `
-        const CACHE = 'tecnikids-viaticos-v4';
+        const CACHE = 'tecnikids-viaticos-v5';
         self.addEventListener('install', e => {
           self.skipWaiting();
           e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./']).catch(()=>{})));
@@ -1174,7 +1187,7 @@ function inferirCategoria(nombre) {
 }
 
 // ============================================================================
-// 8. TABLA DE FACTURAS Y CÁLCULOS (ETAPA 3)
+// 8. TABLA DE FACTURAS, VISTA PREVIA DE IMAGEN Y CÁLCULOS (ETAPA 3)
 // ============================================================================
 function renderFacturas() {
   const doc = getDocActivo();
@@ -1210,10 +1223,15 @@ function renderFacturas() {
         </td>
         <td><input type="number" step="0.01" value="${f.montoOriginal || 0}" oninput="actualizarFactura(${idx}, 'montoOriginal', parseFloat(this.value)||0)" style="width:110px;" /></td>
         <td style="font-weight:700; white-space:nowrap;">₡${Math.round(totalCrc).toLocaleString('es-CR')}</td>
-        <td>
+        <td style="white-space:nowrap;">
           ${f.imagen
-            ? `<span class="badge badge-green">Con Img</span>`
-            : `<label class="btn-sm btn-outline" style="cursor:pointer; padding:4px 8px;">+ Img<input type="file" accept="image/*" class="hidden" onchange="adjuntarImagenFila(${idx}, this.files[0])" /></label>`
+            ? `<div style="display:flex; align-items:center; gap:6px;">
+                <img src="${f.imagen}" alt="Comprobante" onclick="verImagenFactura(${idx})" title="Clic para ampliar"
+                     style="width:42px; height:42px; object-fit:cover; border-radius:6px; border:1px solid #94a3b8; cursor:pointer;" />
+                <button class="btn-sm btn-outline" style="padding:4px 7px;" onclick="verImagenFactura(${idx})" title="Ver imagen">👁️</button>
+                <label class="btn-sm btn-outline" style="cursor:pointer; padding:4px 7px;" title="Cambiar imagen">🔄<input type="file" accept="image/*" class="hidden" onchange="adjuntarImagenFila(${idx}, this.files[0])" /></label>
+               </div>`
+            : `<label class="btn-sm btn-outline" style="cursor:pointer; padding:5px 9px;">📎 + Img<input type="file" accept="image/*" class="hidden" onchange="adjuntarImagenFila(${idx}, this.files[0])" /></label>`
           }
         </td>
         <td style="white-space:nowrap;">
@@ -1223,6 +1241,21 @@ function renderFacturas() {
       </tr>
     `;
   }).join('');
+}
+
+function verImagenFactura(idx) {
+  const doc = getDocActivo();
+  const f = doc?.facturas?.[idx];
+  if (!f || !f.imagen) return;
+  document.getElementById('img-preview-title').textContent =
+    `Comprobante #${idx + 1} — ${f.proveedor || 'Sin proveedor'} (${f.fecha || ''})`;
+  document.getElementById('img-preview-el').src = f.imagen;
+  document.getElementById('img-preview-modal').classList.remove('hidden');
+}
+
+function cerrarVistaPrevia() {
+  document.getElementById('img-preview-modal').classList.add('hidden');
+  document.getElementById('img-preview-el').src = '';
 }
 
 function actualizarFactura(idx, campo, valor) {
