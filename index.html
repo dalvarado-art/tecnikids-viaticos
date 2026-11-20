@@ -43,6 +43,17 @@
     input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
     input[readonly] { background: #f8fafc; color: #475569; }
 
+    /* Splash de verificación inicial (evita pantalla en blanco o parpadeo de login) */
+    #boot-splash {
+      position: fixed; inset: 0; z-index: 10000;
+      background: #0f172a; color: #fff;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    }
+    .boot-badge {
+      width: 54px; height: 54px; border-radius: 14px; background: var(--accent); color: #0f172a;
+      display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800;
+    }
+
     /* Pantalla de Login Firebase */
     #auth-overlay {
       position: fixed; inset: 0; z-index: 9999; background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
@@ -191,8 +202,14 @@
 </head>
 <body>
 
+<!-- PANTALLA DE VERIFICACIÓN DE SESIÓN (EVITA DESTELLO DEL LOGIN AL REFRESCAR) -->
+<div id="boot-splash">
+  <div class="boot-badge">TK</div>
+  <div style="font-size:14px; color:#cbd5e1; font-weight:600;">Verificando sesión...</div>
+</div>
+
 <!-- PANTALLA DE AUTENTICACIÓN FIREBASE -->
-<div id="auth-overlay">
+<div id="auth-overlay" class="hidden">
   <div class="auth-card">
     <div class="auth-logo">TK</div>
     <h2 style="margin:0 0 6px;">Tecnikids SRL</h2>
@@ -217,7 +234,7 @@
 </div>
 
 <!-- ENCABEZADO PRINCIPAL -->
-<header>
+<header id="app-header" class="hidden">
   <div class="brand">
     <span class="brand-badge">TK</span>
     <div>
@@ -235,7 +252,7 @@
   </div>
 </header>
 
-<div class="container">
+<div id="app-container" class="container hidden">
   <!-- VISTA 0: MENÚ DE INICIO Y GESTOR DE BORRADORES -->
   <div id="view-home">
     <div id="alerta-perfil-incompleto" class="card hidden" style="background:#eff6ff; border-color:#93c5fd; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px;">
@@ -690,18 +707,28 @@ function confirmarDescartarCambios() {
 }
 
 auth.onAuthStateChanged(async (user) => {
+  const splash = document.getElementById('boot-splash');
   const overlay = document.getElementById('auth-overlay');
+  const header = document.getElementById('app-header');
+  const mainContainer = document.getElementById('app-container');
   const badge = document.getElementById('user-badge');
   const msg = document.getElementById('auth-msg');
 
   if (user) {
     if (!esCorreoCorporativo(user.email)) {
       await auth.signOut();
+      splash.classList.add('hidden');
+      header.classList.add('hidden');
+      mainContainer.classList.add('hidden');
+      overlay.classList.remove('hidden');
       msg.textContent = 'Acceso denegado: utiliza tu cuenta @tecnikidscr.com o @tecnikidspa.com.';
       return;
     }
     currentUser = user;
     overlay.classList.add('hidden');
+    header.classList.remove('hidden');
+    mainContainer.classList.remove('hidden');
+    splash.classList.add('hidden');
     badge.textContent = user.displayName || user.email;
     await migrarLocalStorageSiExiste(user.uid);
     iniciarListenersNube(user.uid);
@@ -716,7 +743,10 @@ auth.onAuthStateChanged(async (user) => {
     state.docs = [];
     state.plantillas = [];
     state.perfil = null;
+    header.classList.add('hidden');
+    mainContainer.classList.add('hidden');
     overlay.classList.remove('hidden');
+    splash.classList.add('hidden');
     badge.textContent = '';
   }
 });
@@ -762,7 +792,7 @@ function cerrarSesion() {
 }
 
 // ============================================================================
-// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v15)
+// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v17)
 // ============================================================================
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -809,13 +839,17 @@ async function instalarPWA() {
 
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       const swCode = `
-        const CACHE = 'tecnikids-viaticos-v15';
+        const CACHE = 'tecnikids-viaticos-v17';
         self.addEventListener('install', e => {
           self.skipWaiting();
           e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./']).catch(()=>{})));
         });
         self.addEventListener('activate', e => {
-          e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))));
+          e.waitUntil(
+            caches.keys()
+              .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+              .then(() => self.clients.claim())
+          );
         });
         self.addEventListener('fetch', e => {
           if (e.request.method !== 'GET') return;
@@ -1810,7 +1844,6 @@ function actualizarMontoFactura(idx, inputEl) {
   const doc = getDocActivo();
   if (!doc || !doc.facturas[idx]) return;
 
-  // Permite borrar todo el texto o escribir decimales libremente sin perder foco ni posición
   const limpio = inputEl.value.replace(/[^0-9.]/g, '');
   if (inputEl.value !== limpio) {
     const pos = inputEl.selectionStart;
