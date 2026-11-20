@@ -43,7 +43,7 @@
     input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); border-color: transparent; }
     input[readonly] { background: #f8fafc; color: #475569; }
 
-    /* Splash de verificación inicial (evita pantalla en blanco o parpadeo de login) */
+    /* Splash de verificación inicial */
     #boot-splash {
       position: fixed; inset: 0; z-index: 10000;
       background: #0f172a; color: #fff;
@@ -57,21 +57,34 @@
     /* Pantalla de Login Firebase */
     #auth-overlay {
       position: fixed; inset: 0; z-index: 9999; background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
-      display: flex; align-items: center; justify-content: center; padding: 20px;
+      display: flex; align-items: center; justify-content: center; padding: 20px; overflow-y: auto;
     }
     .auth-card {
-      background: #fff; width: 100%; max-width: 410px; border-radius: 18px; padding: 32px 28px;
+      background: #fff; width: 100%; max-width: 420px; border-radius: 18px; padding: 30px 28px;
       box-shadow: 0 25px 50px -12px rgba(0,0,0,0.45); text-align: center;
     }
     .auth-logo {
-      width: 60px; height: 60px; border-radius: 14px; background: var(--primary); color: #fff;
-      display: inline-flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; margin-bottom: 12px;
+      width: 58px; height: 58px; border-radius: 14px; background: var(--primary); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 800; margin-bottom: 10px;
     }
     .btn-google {
       width: 100%; padding: 12px; background: #fff; border: 1px solid #cbd5e1; color: #0f172a;
       display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 15px; margin-bottom: 14px;
     }
     .btn-google:hover { background: #f8fafc; }
+    .auth-tabs {
+      display: grid; grid-template-columns: 1fr 1fr; background: #f1f5f9; padding: 4px; border-radius: 10px; margin-bottom: 14px;
+    }
+    .auth-tab {
+      padding: 8px; font-size: 13px; font-weight: 700; border-radius: 8px; background: transparent; color: #475569;
+    }
+    .auth-tab.active {
+      background: #fff; color: var(--primary); box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    .link-btn {
+      background: none; border: none; color: var(--primary); font-size: 13px; font-weight: 600;
+      padding: 4px 0; text-decoration: underline; cursor: pointer;
+    }
 
     /* Barra superior */
     header {
@@ -202,7 +215,7 @@
 </head>
 <body>
 
-<!-- PANTALLA DE VERIFICACIÓN DE SESIÓN (EVITA DESTELLO DEL LOGIN AL REFRESCAR) -->
+<!-- PANTALLA DE VERIFICACIÓN DE SESIÓN -->
 <div id="boot-splash">
   <div class="boot-badge">TK</div>
   <div style="font-size:14px; color:#cbd5e1; font-weight:600;">Verificando sesión...</div>
@@ -212,21 +225,40 @@
 <div id="auth-overlay" class="hidden">
   <div class="auth-card">
     <div class="auth-logo">TK</div>
-    <h2 style="margin:0 0 6px;">Tecnikids SRL</h2>
+    <h2 style="margin:0 0 4px;">Tecnikids SRL</h2>
     <p style="margin:0 0 6px; color:#64748b; font-size:14px;">Presupuestos y Liquidaciones de Giras y Viáticos</p>
-    <p style="margin:0 0 20px; color:#1d4ed8; font-size:12px; font-weight:600;">Acceso exclusivo @tecnikidscr.com / @tecnikidspa.com</p>
+    <p style="margin:0 0 18px; color:#1d4ed8; font-size:12px; font-weight:600;">Acceso exclusivo @tecnikidscr.com / @tecnikidspa.com</p>
 
     <button id="btn-google-login" class="btn-google" type="button">
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
       <span>Continuar con Google Corporativo</span>
     </button>
 
-    <div style="margin:14px 0; color:#94a3b8; font-size:12px;">o con correo y contraseña institucional</div>
+    <div style="margin:12px 0; color:#94a3b8; font-size:12px;">o con correo y contraseña institucional</div>
 
+    <!-- Pestañas Iniciar Sesión / Crear Cuenta -->
+    <div class="auth-tabs">
+      <button type="button" id="tab-login" class="auth-tab active" onclick="cambiarModoAuth('login')">Iniciar Sesión</button>
+      <button type="button" id="tab-register" class="auth-tab" onclick="cambiarModoAuth('register')">Crear Cuenta</button>
+    </div>
+
+    <!-- Formulario Iniciar Sesión -->
     <form id="form-email-login" style="display:flex; flex-direction:column; gap:10px; text-align:left;">
       <input id="login-email" type="email" placeholder="usuario@tecnikidscr.com" required />
       <input id="login-pass" type="password" placeholder="Contraseña" required />
       <button type="submit" class="btn-primary" style="padding:12px; font-size:15px;">Iniciar Sesión</button>
+      <div style="text-align:right;">
+        <button type="button" class="link-btn" onclick="recuperarContrasena()">¿Olvidaste tu contraseña?</button>
+      </div>
+    </form>
+
+    <!-- Formulario Crear Cuenta Corporativa -->
+    <form id="form-email-register" class="hidden" style="display:flex; flex-direction:column; gap:10px; text-align:left;">
+      <input id="reg-nombre" type="text" placeholder="Nombre completo (Ej. Diego Alvarado)" required />
+      <input id="reg-email" type="email" placeholder="usuario@tecnikidscr.com" required />
+      <input id="reg-pass" type="password" placeholder="Contraseña (mínimo 6 caracteres)" minlength="6" required />
+      <input id="reg-pass-confirm" type="password" placeholder="Confirmar contraseña" minlength="6" required />
+      <button type="submit" class="btn-success" style="padding:12px; font-size:15px;">Crear Cuenta Corporativa</button>
     </form>
 
     <p id="auth-msg" style="color:#dc2626; font-size:13px; margin:12px 0 0; min-height:18px; font-weight:600;"></p>
@@ -362,6 +394,32 @@
       <div style="margin-top:22px; display:flex; gap:10px; flex-wrap:wrap;">
         <button type="button" class="btn-primary" style="padding:11px 22px;" onclick="guardarPerfilUsuario()">💾 Guardar Mi Perfil en la Nube</button>
         <button type="button" class="btn-outline" style="padding:11px 18px;" onclick="volverInicio()">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- SECCIÓN CAMBIO DE CONTRASEÑA (SOLO PARA USUARIOS DE CORREO/CONTRASEÑA) -->
+    <div id="card-cambiar-password" class="card hidden">
+      <h3 style="margin:0 0 6px;">🔒 Seguridad — Cambiar Contraseña</h3>
+      <p style="margin:0 0 14px; color:var(--muted); font-size:13px;">Actualiza la contraseña de tu cuenta corporativa.</p>
+
+      <div class="grid-3">
+        <div>
+          <label style="font-size:12px; font-weight:600;">Contraseña Actual</label>
+          <input id="pw-actual" type="password" placeholder="••••••••" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Nueva Contraseña</label>
+          <input id="pw-nueva" type="password" placeholder="Mínimo 6 caracteres" />
+        </div>
+        <div>
+          <label style="font-size:12px; font-weight:600;">Confirmar Nueva Contraseña</label>
+          <input id="pw-confirmar" type="password" placeholder="Repite la nueva contraseña" />
+        </div>
+      </div>
+
+      <div style="margin-top:14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <button type="button" class="btn-primary" style="padding:10px 18px;" onclick="cambiarContrasenaPerfil()">🔑 Actualizar Contraseña</button>
+        <span id="pw-msg" style="font-size:13px; font-weight:600;"></span>
       </div>
     </div>
   </div>
@@ -671,7 +729,7 @@ let unsubDocs = null;
 let unsubPlantillas = null;
 let unsubPerfil = null;
 
-// Control de borrador activo en edición (aislado de Firestore hasta pulsar "Guardar borrador")
+// Control de borrador activo en edición
 let workingDoc = null;
 let hasUnsavedChanges = false;
 let isNewUnsavedDoc = false;
@@ -706,6 +764,49 @@ function confirmarDescartarCambios() {
   return true;
 }
 
+function cambiarModoAuth(modo) {
+  const msg = document.getElementById('auth-msg');
+  msg.textContent = '';
+  msg.style.color = '#dc2626';
+
+  const isLogin = modo === 'login';
+  document.getElementById('tab-login').classList.toggle('active', isLogin);
+  document.getElementById('tab-register').classList.toggle('active', !isLogin);
+  document.getElementById('form-email-login').classList.toggle('hidden', !isLogin);
+  document.getElementById('form-email-register').classList.toggle('hidden', isLogin);
+}
+
+async function recuperarContrasena() {
+  const msg = document.getElementById('auth-msg');
+  const email = document.getElementById('login-email').value.trim();
+
+  if (!email) {
+    msg.style.color = '#dc2626';
+    msg.textContent = 'Escribe tu correo corporativo arriba y vuelve a pulsar "¿Olvidaste tu contraseña?".';
+    document.getElementById('login-email').focus();
+    return;
+  }
+
+  if (!esCorreoCorporativo(email)) {
+    msg.style.color = '#dc2626';
+    msg.textContent = 'Solo se permiten correos @tecnikidscr.com o @tecnikidspa.com.';
+    return;
+  }
+
+  try {
+    await auth.sendPasswordResetEmail(email);
+    msg.style.color = '#16a34a';
+    msg.textContent = '✅ Te enviamos un enlace a ' + email + ' para restablecer tu contraseña.';
+  } catch (err) {
+    msg.style.color = '#dc2626';
+    if (err.code === 'auth/user-not-found') {
+      msg.textContent = 'No existe una cuenta registrada con ese correo. Puedes crearla en la pestaña "Crear Cuenta".';
+    } else {
+      msg.textContent = 'No se pudo enviar el correo: ' + err.message;
+    }
+  }
+}
+
 auth.onAuthStateChanged(async (user) => {
   const splash = document.getElementById('boot-splash');
   const overlay = document.getElementById('auth-overlay');
@@ -721,6 +822,7 @@ auth.onAuthStateChanged(async (user) => {
       header.classList.add('hidden');
       mainContainer.classList.add('hidden');
       overlay.classList.remove('hidden');
+      msg.style.color = '#dc2626';
       msg.textContent = 'Acceso denegado: utiliza tu cuenta @tecnikidscr.com o @tecnikidspa.com.';
       return;
     }
@@ -754,6 +856,7 @@ auth.onAuthStateChanged(async (user) => {
 document.getElementById('btn-google-login').addEventListener('click', async () => {
   const msg = document.getElementById('auth-msg');
   msg.textContent = '';
+  msg.style.color = '#dc2626';
   try {
     const res = await auth.signInWithPopup(googleProvider);
     if (res.user && !esCorreoCorporativo(res.user.email)) {
@@ -769,6 +872,7 @@ document.getElementById('form-email-login').addEventListener('submit', async (e)
   e.preventDefault();
   const msg = document.getElementById('auth-msg');
   msg.textContent = '';
+  msg.style.color = '#dc2626';
   const email = document.getElementById('login-email').value.trim();
   const pass = document.getElementById('login-pass').value;
 
@@ -784,6 +888,49 @@ document.getElementById('form-email-login').addEventListener('submit', async (e)
   }
 });
 
+document.getElementById('form-email-register').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('auth-msg');
+  msg.textContent = '';
+  msg.style.color = '#dc2626';
+
+  const nombre = document.getElementById('reg-nombre').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  const passConfirm = document.getElementById('reg-pass-confirm').value;
+
+  if (!esCorreoCorporativo(email)) {
+    msg.textContent = 'Solo se permiten correos @tecnikidscr.com o @tecnikidspa.com.';
+    return;
+  }
+  if (pass !== passConfirm) {
+    msg.textContent = 'Las contraseñas no coinciden.';
+    return;
+  }
+
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    if (cred.user) {
+      await cred.user.updateProfile({ displayName: nombre });
+      await userRef(cred.user.uid).collection('perfil').doc('datos').set({
+        nombre,
+        correo: email,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      cred.user.sendEmailVerification().catch(() => {});
+      toast('✅ Cuenta corporativa creada con éxito.');
+    }
+  } catch (err) {
+    if (err.code === 'auth/email-already-in-use') {
+      msg.textContent = 'Este correo ya tiene una cuenta registrada. Inicia sesión o recupera tu contraseña.';
+    } else if (err.code === 'auth/weak-password') {
+      msg.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+    } else {
+      msg.textContent = 'No se pudo crear la cuenta: ' + err.message;
+    }
+  }
+});
+
 function cerrarSesion() {
   if (!confirmarDescartarCambios()) return;
   workingDoc = null;
@@ -792,7 +939,7 @@ function cerrarSesion() {
 }
 
 // ============================================================================
-// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v17)
+// 2. PWA: MANIFEST DINÁMICO + SERVICE WORKER OFFLINE (v18)
 // ============================================================================
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -839,7 +986,7 @@ async function instalarPWA() {
 
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
       const swCode = `
-        const CACHE = 'tecnikids-viaticos-v17';
+        const CACHE = 'tecnikids-viaticos-v18';
         self.addEventListener('install', e => {
           self.skipWaiting();
           e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./']).catch(()=>{})));
@@ -942,7 +1089,6 @@ function iniciarListenersNube(uid) {
         });
       });
       state.docs = nuevos;
-      // Solo refrescar lista de inicio si no estamos editando un borrador
       if (!workingDoc && document.getElementById('view-profile').classList.contains('hidden')) {
         renderHome();
       }
@@ -969,7 +1115,7 @@ function actualizarBannerPerfilIncompleto() {
 }
 
 // ============================================================================
-// 3B. GESTIÓN DE PERFIL DE USUARIO (NUBE)
+// 3B. GESTIÓN DE PERFIL DE USUARIO Y CAMBIO DE CONTRASEÑA
 // ============================================================================
 function abrirPerfil() {
   if (!confirmarDescartarCambios()) return;
@@ -995,6 +1141,58 @@ function abrirPerfil() {
   document.getElementById('p-aprobador').value = p.aprobador || '';
 
   cargarFirmaEnCanvasId('profile-sig-canvas', p.firmaDataUrl || '');
+
+  // Mostrar cambio de contraseña solo si el usuario usa correo y contraseña (no Google)
+  const usaPassword = currentUser?.providerData?.some(prov => prov.providerId === 'password');
+  const cardPw = document.getElementById('card-cambiar-password');
+  cardPw.classList.toggle('hidden', !usaPassword);
+  document.getElementById('pw-actual').value = '';
+  document.getElementById('pw-nueva').value = '';
+  document.getElementById('pw-confirmar').value = '';
+  document.getElementById('pw-msg').textContent = '';
+}
+
+async function cambiarContrasenaPerfil() {
+  if (!currentUser || !currentUser.email) return;
+  const msgEl = document.getElementById('pw-msg');
+  msgEl.textContent = '';
+  msgEl.style.color = '#dc2626';
+
+  const actual = document.getElementById('pw-actual').value;
+  const nueva = document.getElementById('pw-nueva').value;
+  const confirmar = document.getElementById('pw-confirmar').value;
+
+  if (!actual || !nueva || !confirmar) {
+    msgEl.textContent = 'Completa los tres campos de contraseña.';
+    return;
+  }
+  if (nueva.length < 6) {
+    msgEl.textContent = 'La nueva contraseña debe tener al menos 6 caracteres.';
+    return;
+  }
+  if (nueva !== confirmar) {
+    msgEl.textContent = 'La nueva contraseña y su confirmación no coinciden.';
+    return;
+  }
+
+  try {
+    const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, actual);
+    await currentUser.reauthenticateWithCredential(cred);
+    await currentUser.updatePassword(nueva);
+
+    document.getElementById('pw-actual').value = '';
+    document.getElementById('pw-nueva').value = '';
+    document.getElementById('pw-confirmar').value = '';
+    msgEl.style.color = '#16a34a';
+    msgEl.textContent = '✅ Contraseña actualizada correctamente.';
+    toast('🔑 Contraseña actualizada.');
+  } catch (err) {
+    if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      msgEl.textContent = 'La contraseña actual es incorrecta.';
+    } else {
+      msgEl.textContent = 'Error al cambiar contraseña: ' + err.message;
+    }
+  }
 }
 
 async function guardarPerfilUsuario() {
@@ -1152,7 +1350,6 @@ function iniciarNuevoDocumento(tipo, plantilla = null) {
   const month = hoy.slice(5, 7);
   const p = state.perfil || {};
 
-  // Se crea únicamente en memoria; solo se guarda en la nube si el usuario pulsa "Guardar borrador"
   workingDoc = {
     id,
     tipo,
